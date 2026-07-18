@@ -4,6 +4,7 @@ import prisma from '../../db.js';
 import { parseList, sendList } from '../../lib/refine.js';
 import { serialize } from '../../lib/money.js';
 import { generateApiKey, generateApiSecret } from '../../lib/apiKeys.js';
+import { adjustBalance } from '../../lib/ledger.js';
 import cryptoOffice from '../../services/cryptoOffice.js';
 
 const router = Router();
@@ -121,6 +122,21 @@ router.patch('/:id', async (req, res) => {
     const client = await prisma.client.update({ where: { id: req.params.id }, data, select: publicSelect });
     res.json(serialize(await withPasswordFlag(client)));
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/clients/:id/adjust-balance — manual balance correction
+// body: { balanceType: DEPOSIT|SBP|PROMPTPAY|ESIM, amount (signed), note }
+router.post('/:id/adjust-balance', async (req, res) => {
+  try {
+    const { balanceType, amount, note } = req.body || {};
+    if (!['DEPOSIT', 'SBP', 'PROMPTPAY', 'ESIM'].includes(balanceType)) return res.status(400).json({ error: 'Неверный тип баланса' });
+    if (amount === undefined || Number(amount) === 0) return res.status(400).json({ error: 'Ненулевая сумма обязательна' });
+    const updated = await adjustBalance(req.params.id, req.admin?.sub || null, balanceType, Number(amount), note || 'Ручная корректировка');
+    res.json(serialize({ id: updated.id, depositBalance: updated.depositBalance, sbpBalance: updated.sbpBalance, promptpayBalance: updated.promptpayBalance, esimBalance: updated.esimBalance }));
+  } catch (e) {
+    if (e.code === 'NEGATIVE_BALANCE') return res.status(400).json({ error: e.message, code: e.code });
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // POST /api/admin/clients/:id/rotate-keys — regenerate API credentials

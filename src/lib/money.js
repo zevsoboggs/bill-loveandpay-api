@@ -11,6 +11,10 @@ export const systemBalanceField = (system) =>
 export const balanceTypeForSystem = (system) =>
   system === 'SBP' ? 'SBP' : system === 'ESIM' ? 'ESIM' : 'PROMPTPAY';
 
+// Balance column name per balance type (incl. the deposit pool).
+export const balanceFieldFor = (balanceType) =>
+  ({ DEPOSIT: 'depositBalance', SBP: 'sbpBalance', PROMPTPAY: 'promptpayBalance', ESIM: 'esimBalance' }[balanceType]);
+
 // Recursively convert Prisma Decimal instances to plain numbers so JSON responses
 // carry numbers (not decimal strings) for the Refine/AntD frontend.
 export function serialize(input) {

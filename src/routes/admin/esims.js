@@ -8,7 +8,7 @@ const router = Router();
 // GET /api/admin/esims — issued eSIMs across all clients (read-only)
 router.get('/', async (req, res) => {
   try {
-    const { skip, take, orderBy, where } = parseList(req.query, { allowedFilters: ['clientId', 'status', 'country'] });
+    const { skip, take, orderBy, where } = parseList(req.query, { allowedFilters: ['clientId', 'status', 'country', 'iccid'] });
     const [rows, total] = await Promise.all([
       prisma.esim.findMany({ skip, take, orderBy, where, include: { client: { select: { name: true } } } }),
       prisma.esim.count({ where }),

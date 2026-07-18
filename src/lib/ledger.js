@@ -1,6 +1,6 @@
 // Transactional balance mutations. Every change writes an immutable LedgerEntry.
 import prisma from '../db.js';
-import { toNum, round6, systemBalanceField, balanceTypeForSystem } from './money.js';
+import { toNum, round6, systemBalanceField, balanceTypeForSystem, balanceFieldFor } from './money.js';
 
 // Credit a confirmed USDT deposit into the client's unallocated deposit pool.
 export async function creditDeposit(clientId, amountUsdt, { refId, note } = {}) {
@@ -84,6 +84,26 @@ export async function chargeSystem(clientId, system, amountUsdt, { refId, note }
         clientId, kind: 'PAYMENT', balanceType: balanceTypeForSystem(system), system,
         amountUsdt: round6(-amt), balanceAfter: updated[field], refId, note,
       },
+    });
+    return updated;
+  });
+}
+
+// Manual balance correction by an admin (signed). Writes an ADJUSTMENT ledger
+// entry. Blocks a correction that would drive the balance negative.
+export async function adjustBalance(clientId, adminId, balanceType, amount, note) {
+  const amt = round6(amount);
+  const field = balanceFieldFor(balanceType);
+  if (!field) throw Object.assign(new Error('Invalid balanceType'), { code: 'BAD_TYPE' });
+  const system = balanceType === 'DEPOSIT' ? null : balanceType;
+  return prisma.$transaction(async (tx) => {
+    const client = await tx.client.findUnique({ where: { id: clientId } });
+    if (!client) throw new Error('Client not found');
+    if (toNum(client[field]) + amt < 0) throw Object.assign(new Error('Баланс не может стать отрицательным'), { code: 'NEGATIVE_BALANCE' });
+
+    const updated = await tx.client.update({ where: { id: clientId }, data: { [field]: { increment: amt } } });
+    await tx.ledgerEntry.create({
+      data: { clientId, kind: 'ADJUSTMENT', balanceType, system, amountUsdt: amt, balanceAfter: updated[field], note },
     });
     return updated;
   });
