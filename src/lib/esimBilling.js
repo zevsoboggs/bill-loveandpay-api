@@ -22,9 +22,12 @@ export const findPlan = async (planId) => (await loadPlans()).find((p) => String
 export async function annotatePlan(client, plan) {
   const costUsdt = await eurToUsdt(toNum(plan.price));
   const price = priceFromCost(client, 'ESIM', costUsdt);
+  const countries = String(plan.countries_included || '').split(',').map((s) => s.trim()).filter(Boolean);
   // White-label: never expose the upstream provider (carrier operators / provider CDN).
   return {
-    id: plan.id, name: plan.name, country: plan.countries_included, countryIso2: plan.countryIso2,
+    id: plan.id, name: plan.name,
+    country: countries[0] || plan.countries_included, countryIso2: plan.countryIso2,
+    countries, countriesCount: countries.length,
     data: plan.data, dataUnit: plan.data_unit, days: plan.days,
     planType: plan.plan_type,
     priceEur: toNum(plan.price), priceUsdt: price.chargedUsdt, marginRate: price.marginRate,
