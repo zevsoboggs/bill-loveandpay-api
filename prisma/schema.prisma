@@ -1,0 +1,282 @@
+// Reselling billing platform — SBP (USDT) + PromptPay (Thai QR)
+// Deposits in USDT via CryptoOffice; admin distributes each client's deposit
+// between the SBP system balance and the PromptPay system balance.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+enum AdminRole {
+  SUPERADMIN
+  ADMIN
+  VIEWER
+}
+
+enum ClientStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING
+}
+
+enum PaymentSystem {
+  SBP
+  PROMPTPAY
+}
+
+enum DepositStatus {
+  PENDING
+  CONFIRMED
+  CREDITED
+  FAILED
+}
+
+enum TxStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum LedgerKind {
+  DEPOSIT
+  ALLOCATION
+  PAYMENT
+  REFUND
+  ADJUSTMENT
+}
+
+enum BalanceType {
+  DEPOSIT
+  SBP
+  PROMPTPAY
+}
+
+enum CardAppStatus {
+  NEW
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+// ─── Platform admins ─────────────────────────────────────────────────────────
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String?
+  role         AdminRole @default(ADMIN)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  allocations Allocation[]
+
+  @@map("admin_users")
+}
+
+// ─── Reseller clients ────────────────────────────────────────────────────────
+model Client {
+  id       String       @id @default(cuid())
+  name     String
+  email    String?
+  company  String?
+  status   ClientStatus @default(ACTIVE)
+
+  // API access (relay). apiKey is public-ish id; apiSecret is the bearer secret.
+  apiKey    String  @unique
+  apiSecret String
+  // If true, only IPs present in ipWhitelist may call the relay API.
+  ipRestricted Boolean @default(true)
+
+  // Client web-portal login. passwordHash is null until an admin sets it.
+  passwordHash  String?
+  portalEnabled Boolean @default(false)
+  lastLoginAt   DateTime?
+
+  // Balances (all in USDT). depositBalance = unallocated pool that the admin
+  // distributes into the two system balances.
+  depositBalance    Decimal @default(0) @db.Decimal(20, 6)
+  sbpBalance        Decimal @default(0) @db.Decimal(20, 6)
+  promptpayBalance  Decimal @default(0) @db.Decimal(20, 6)
+
+  // Per-client margin overrides (fraction). Null → platform default.
+  sbpMargin       Decimal? @db.Decimal(6, 4)
+  promptpayMargin Decimal? @db.Decimal(6, 4)
+
+  // Dedicated CryptoOffice transit wallet for this client's USDT deposits.
+  depositWalletId      String?
+  depositWalletAddress String?
+  // Last on-chain USDT balance already credited from the deposit wallet. The
+  // watcher credits (current − baseline) so arrivals are never double-counted.
+  depositWalletBaseline Decimal @default(0) @db.Decimal(20, 6)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ipWhitelist  IpWhitelist[]
+  deposits     Deposit[]
+  allocations  Allocation[]
+  transactions Transaction[]
+  ledger       LedgerEntry[]
+  requestLogs  ApiRequestLog[]
+  cardApplications CardApplication[]
+
+  @@map("clients")
+}
+
+// ─── Card program applications (клиентские заявки на карты) ──────────────────
+model CardApplication {
+  id          String        @id @default(cuid())
+  clientId    String
+  contactName String?
+  contact     String        // telegram / email / phone for callback
+  cardType    String?       // e.g. "USDT виртуальная", "Пластик"
+  volume      String?       // expected monthly volume (free text)
+  comment     String?
+  status      CardAppStatus @default(NEW)
+  adminNote   String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([status])
+  @@map("card_applications")
+}
+
+// ─── IP whitelist (per client) ───────────────────────────────────────────────
+model IpWhitelist {
+  id        String   @id @default(cuid())
+  clientId  String
+  ip        String
+  label     String?
+  createdAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, ip])
+  @@map("ip_whitelist")
+}
+
+// ─── USDT deposits ───────────────────────────────────────────────────────────
+model Deposit {
+  id          String        @id @default(cuid())
+  clientId    String
+  amountUsdt  Decimal       @db.Decimal(20, 6)
+  network     String        @default("TRC-20")
+  txHash      String?
+  address     String?
+  status      DepositStatus @default(PENDING)
+  note        String?
+  createdAt   DateTime      @default(now())
+  confirmedAt DateTime?
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@map("deposits")
+}
+
+// ─── Distribution of deposit between systems (admin action) ─────────────────
+model Allocation {
+  id           String        @id @default(cuid())
+  clientId     String
+  adminId      String?
+  system       PaymentSystem
+  // Positive = move deposit → system balance; negative = move back to deposit.
+  amount       Decimal       @db.Decimal(20, 6)
+  balanceAfter Decimal       @db.Decimal(20, 6)
+  note         String?
+  createdAt    DateTime      @default(now())
+
+  client Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  admin  AdminUser? @relation(fields: [adminId], references: [id])
+
+  @@index([clientId])
+  @@map("allocations")
+}
+
+// ─── Payment transactions (relayed) ──────────────────────────────────────────
+model Transaction {
+  id       String        @id @default(cuid())
+  clientId String
+  system   PaymentSystem
+  status   TxStatus      @default(PENDING)
+
+  // Source amounts as the client's end-user sees them.
+  sourceAmount   Decimal? @db.Decimal(20, 2)
+  sourceCurrency String? // RUB (SBP) or THB (PromptPay)
+
+  // Money math in USDT.
+  providerCostUsdt Decimal @default(0) @db.Decimal(20, 6) // what the provider cost us
+  marginUsdt       Decimal @default(0) @db.Decimal(20, 6) // our profit
+  chargedUsdt      Decimal @default(0) @db.Decimal(20, 6) // debited from client balance
+
+  providerRef String? // id returned by tranzor
+  description String?
+  metadata    Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([system])
+  @@index([status])
+  @@map("transactions")
+}
+
+// ─── Immutable ledger (audit of every balance change) ───────────────────────
+model LedgerEntry {
+  id           String       @id @default(cuid())
+  clientId     String
+  kind         LedgerKind
+  balanceType  BalanceType
+  system       PaymentSystem?
+  amountUsdt   Decimal      @db.Decimal(20, 6) // signed
+  balanceAfter Decimal      @db.Decimal(20, 6)
+  refId        String? // deposit/allocation/transaction id
+  note         String?
+  createdAt    DateTime     @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([kind])
+  @@map("ledger_entries")
+}
+
+// ─── Lightweight relay API request log ──────────────────────────────────────
+model ApiRequestLog {
+  id        String   @id @default(cuid())
+  clientId  String?
+  method    String
+  path      String
+  ip        String?
+  status    Int?
+  createdAt DateTime @default(now())
+
+  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@map("api_request_logs")
+}
+
+// ─── Platform settings (key/value) ──────────────────────────────────────────
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}

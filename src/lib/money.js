@@ -1,0 +1,27 @@
+// USDT money helpers. Balances are stored as Decimal(20,6); we do arithmetic in
+// JS numbers (safe at USDT magnitudes) and round to 6 dp before persisting.
+export const toNum = (v) => (v == null ? 0 : Number(v));
+export const round6 = (n) => Math.round((Number(n) + Number.EPSILON) * 1e6) / 1e6;
+export const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+
+// Balance column name per payment system.
+export const systemBalanceField = (system) =>
+  system === 'SBP' ? 'sbpBalance' : 'promptpayBalance';
+
+export const balanceTypeForSystem = (system) => (system === 'SBP' ? 'SBP' : 'PROMPTPAY');
+
+// Recursively convert Prisma Decimal instances to plain numbers so JSON responses
+// carry numbers (not decimal strings) for the Refine/AntD frontend.
+export function serialize(input) {
+  if (input == null) return input;
+  if (Array.isArray(input)) return input.map(serialize);
+  if (typeof input === 'object') {
+    if (input instanceof Date) return input.toISOString();
+    // Prisma Decimal exposes toNumber(); Dates are handled above.
+    if (typeof input.toNumber === 'function') return input.toNumber();
+    const out = {};
+    for (const [k, v] of Object.entries(input)) out[k] = serialize(v);
+    return out;
+  }
+  return input;
+}

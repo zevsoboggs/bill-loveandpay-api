@@ -1,0 +1,27 @@
+import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
+import { clientAuth } from '../../middleware/clientAuth.js';
+import balance from './balance.js';
+import sbp from './sbp.js';
+import promptpay from './promptpay.js';
+
+const router = Router();
+
+// Per-client rate limit (keyed on API key, falls back to IP).
+const limiter = rateLimit({
+  windowMs: 60_000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.headers['x-api-key'] || req.ip,
+  message: { error: 'Слишком много запросов, попробуйте позже' },
+});
+
+router.use(limiter);
+router.use(clientAuth); // API key + secret + IP whitelist
+
+router.use('/balance', balance);
+router.use('/sbp', sbp);
+router.use('/promptpay', promptpay);
+
+export default router;
