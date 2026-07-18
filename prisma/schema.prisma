@@ -27,6 +27,7 @@ enum ClientStatus {
 enum PaymentSystem {
   SBP
   PROMPTPAY
+  ESIM
 }
 
 enum DepositStatus {
@@ -56,6 +57,7 @@ enum BalanceType {
   DEPOSIT
   SBP
   PROMPTPAY
+  ESIM
 }
 
 enum CardAppStatus {
@@ -102,14 +104,22 @@ model Client {
   lastLoginAt   DateTime?
 
   // Balances (all in USDT). depositBalance = unallocated pool that the admin
-  // distributes into the two system balances.
+  // distributes into the per-service balances.
   depositBalance    Decimal @default(0) @db.Decimal(20, 6)
   sbpBalance        Decimal @default(0) @db.Decimal(20, 6)
   promptpayBalance  Decimal @default(0) @db.Decimal(20, 6)
+  esimBalance       Decimal @default(0) @db.Decimal(20, 6)
 
   // Per-client margin overrides (fraction). Null → platform default.
   sbpMargin       Decimal? @db.Decimal(6, 4)
   promptpayMargin Decimal? @db.Decimal(6, 4)
+  esimMargin      Decimal? @db.Decimal(6, 4)
+
+  // Service access — chosen per partner. A disabled service is hidden in the
+  // cabinet and rejected on the relay API.
+  sbpEnabled       Boolean @default(true)
+  promptpayEnabled Boolean @default(true)
+  esimEnabled      Boolean @default(false)
 
   // Dedicated CryptoOffice transit wallet for this client's USDT deposits.
   depositWalletId      String?
@@ -128,8 +138,35 @@ model Client {
   ledger       LedgerEntry[]
   requestLogs  ApiRequestLog[]
   cardApplications CardApplication[]
+  esims        Esim[]
 
   @@map("clients")
+}
+
+// ─── Issued eSIMs (Yesim) ────────────────────────────────────────────────────
+model Esim {
+  id          String   @id @default(cuid())
+  clientId    String
+  iccid       String?
+  planId      String
+  planName    String?
+  country     String?
+  dataAmount  String?
+  days        String?
+  priceEur    Decimal? @db.Decimal(20, 4)
+  chargedUsdt Decimal  @default(0) @db.Decimal(20, 6)
+  qrcode      String?  // LPA activation string
+  status      String?
+  yesimUserId String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([iccid])
+  @@map("esims")
 }
 
 // ─── Card program applications (клиентские заявки на карты) ──────────────────

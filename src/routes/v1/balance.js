@@ -15,10 +15,17 @@ router.get('/', (req, res) => {
       deposit: toNum(c.depositBalance),
       sbp: toNum(c.sbpBalance),
       promptpay: toNum(c.promptpayBalance),
+      esim: toNum(c.esimBalance),
     },
     margins: {
       sbp: marginFor(c, 'SBP'),
       promptpay: marginFor(c, 'PROMPTPAY'),
+      esim: marginFor(c, 'ESIM'),
+    },
+    services: {
+      sbp: c.sbpEnabled,
+      promptpay: c.promptpayEnabled,
+      esim: c.esimEnabled,
     },
     depositAddress: c.depositWalletAddress || null,
     depositNetwork: c.depositWalletAddress ? 'TRC-20' : null,

@@ -98,11 +98,48 @@ export const openapiSpec = {
     '/promptpay/slip/{ppTxId}': {
       get: { tags: ['PromptPay'], summary: 'Изображение слипа (jpeg)', parameters: [{ name: 'ppTxId', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'image/jpeg' } } },
     },
+    '/esim/plans': {
+      get: {
+        tags: ['eSIM'], summary: 'Каталог тарифов eSIM с ценой в USDT',
+        parameters: [
+          { name: 'country', in: 'query', schema: { type: 'string' }, description: 'ISO2 или название страны' },
+          { name: 'search', in: 'query', schema: { type: 'string' } },
+          { name: 'limit', in: 'query', schema: { type: 'integer' } },
+        ],
+        responses: { 200: { description: 'Список тарифов (priceUsdt = цена с вашей ставкой)' } },
+      },
+    },
+    '/esim/plans/{id}': {
+      get: { tags: ['eSIM'], summary: 'Тариф по id (с ценой USDT)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'OK' }, 404: { description: 'Not found' } } },
+    },
+    '/esim/issue': {
+      post: {
+        tags: ['eSIM'], summary: 'Выпустить eSIM (списание с eSIM-баланса)',
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['planId'], properties: { planId: { type: 'string' }, count: { type: 'integer', default: 1 } } } } } },
+        responses: { 200: { description: 'eSIM(ы) с ICCID и QR' }, 402: { description: 'Недостаточно средств' }, 502: { description: 'Ошибка провайдера, средства возвращены' } },
+      },
+    },
+    '/esim/topup': {
+      post: {
+        tags: ['eSIM'], summary: 'Пополнить существующий eSIM тарифом',
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['iccid', 'planId'], properties: { iccid: { type: 'string' }, planId: { type: 'string' } } } } } },
+        responses: { 200: { description: 'OK' }, 402: { description: 'Недостаточно средств' } },
+      },
+    },
+    '/esim/my': { get: { tags: ['eSIM'], summary: 'Мои выпущенные eSIM', responses: { 200: { description: 'OK' } } } },
+    '/esim/sim/{iccid}': { get: { tags: ['eSIM'], summary: 'Статус eSIM (sim_info)', parameters: [{ name: 'iccid', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'OK' } } } },
+    '/esim/orders': { get: { tags: ['eSIM'], summary: 'Заказы eSIM', responses: { 200: { description: 'OK' } } } },
+    '/esim/supported-devices': { get: { tags: ['eSIM'], summary: 'Поддерживаемые устройства', responses: { 200: { description: 'OK' } } } },
+    '/esim/allowed-operators': { get: { tags: ['eSIM'], summary: 'Доступные операторы', responses: { 200: { description: 'OK' } } } },
+    '/esim/cancel': {
+      post: { tags: ['eSIM'], summary: 'Отменить тариф eSIM', requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['iccid'], properties: { iccid: { type: 'string' } } } } } }, responses: { 200: { description: 'OK' } } },
+    },
   },
   tags: [
     { name: 'Account', description: 'Баланс и настройки клиента' },
     { name: 'SBP', description: 'СБП — оплата через USDT' },
     { name: 'PromptPay', description: 'Тайские QR коды' },
+    { name: 'eSIM', description: 'eSIM (Yesim) — тарифы, выпуск, пополнение' },
   ],
 };
 

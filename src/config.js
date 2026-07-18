@@ -42,6 +42,14 @@ const config = {
     apiKey: process.env.PROMPTPAY_API_KEY,
     defaultMargin: num(process.env.DEFAULT_PROMPTPAY_MARGIN, 0.04),
   },
+
+  esim: {
+    baseUrl: process.env.YESIM_API_BASE || 'https://partners-api.yesim.biz',
+    token: process.env.YESIM_API_TOKEN,
+    defaultMargin: num(process.env.DEFAULT_ESIM_MARGIN, 0.15),
+    // EUR→USDT fallback if the live FX lookup fails.
+    eurUsdFallback: num(process.env.EUR_USD_FALLBACK, 1.08),
+  },
 };
 
 export default config;

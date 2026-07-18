@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { clientAuth } from '../../middleware/clientAuth.js';
+import { requireService } from '../../middleware/requireService.js';
 import balance from './balance.js';
 import sbp from './sbp.js';
 import promptpay from './promptpay.js';
+import esim from './esim.js';
 
 const router = Router();
 
@@ -21,7 +23,8 @@ router.use(limiter);
 router.use(clientAuth); // API key + secret + IP whitelist
 
 router.use('/balance', balance);
-router.use('/sbp', sbp);
-router.use('/promptpay', promptpay);
+router.use('/sbp', requireService('SBP'), sbp);
+router.use('/promptpay', requireService('PROMPTPAY'), promptpay);
+router.use('/esim', requireService('ESIM'), esim);
 
 export default router;

@@ -8,6 +8,7 @@ import ipWhitelist from './ipWhitelist.js';
 import ledger from './ledger.js';
 import dashboard from './dashboard.js';
 import cardApplications from './cardApplications.js';
+import esims from './esims.js';
 
 const router = Router();
 
@@ -21,6 +22,7 @@ router.use('/transactions', transactions);
 router.use('/ip-whitelist', ipWhitelist);
 router.use('/ledger', ledger);
 router.use('/card-applications', cardApplications);
+router.use('/esims', esims);
 router.use('/dashboard', dashboard);
 
 export default router;

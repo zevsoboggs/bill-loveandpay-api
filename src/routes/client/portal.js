@@ -17,8 +17,9 @@ router.get('/me', async (req, res) => {
   });
   res.json(serialize({
     id: c.id, name: c.name, email: c.email, company: c.company, status: c.status,
-    balances: { deposit: toNum(c.depositBalance), sbp: toNum(c.sbpBalance), promptpay: toNum(c.promptpayBalance) },
-    margins: { sbp: marginFor(c, 'SBP'), promptpay: marginFor(c, 'PROMPTPAY') },
+    balances: { deposit: toNum(c.depositBalance), sbp: toNum(c.sbpBalance), promptpay: toNum(c.promptpayBalance), esim: toNum(c.esimBalance) },
+    margins: { sbp: marginFor(c, 'SBP'), promptpay: marginFor(c, 'PROMPTPAY'), esim: marginFor(c, 'ESIM') },
+    services: { sbp: c.sbpEnabled, promptpay: c.promptpayEnabled, esim: c.esimEnabled },
     api: { apiKey: c.apiKey, apiSecret: c.apiSecret, ipRestricted: c.ipRestricted },
     deposit: { walletAddress: c.depositWalletAddress, network: c.depositWalletAddress ? 'TRC-20' : null, hasWallet: !!c.depositWalletId },
     ipWhitelist: c.ipWhitelist,

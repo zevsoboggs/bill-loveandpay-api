@@ -4,11 +4,12 @@ export const toNum = (v) => (v == null ? 0 : Number(v));
 export const round6 = (n) => Math.round((Number(n) + Number.EPSILON) * 1e6) / 1e6;
 export const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
-// Balance column name per payment system.
+// Balance column name per service.
 export const systemBalanceField = (system) =>
-  system === 'SBP' ? 'sbpBalance' : 'promptpayBalance';
+  system === 'SBP' ? 'sbpBalance' : system === 'ESIM' ? 'esimBalance' : 'promptpayBalance';
 
-export const balanceTypeForSystem = (system) => (system === 'SBP' ? 'SBP' : 'PROMPTPAY');
+export const balanceTypeForSystem = (system) =>
+  system === 'SBP' ? 'SBP' : system === 'ESIM' ? 'ESIM' : 'PROMPTPAY';
 
 // Recursively convert Prisma Decimal instances to plain numbers so JSON responses
 // carry numbers (not decimal strings) for the Refine/AntD frontend.

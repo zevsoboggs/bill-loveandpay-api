@@ -32,11 +32,11 @@ router.post('/', async (req, res) => {
     if (!clientId || !system || amount === undefined || Number(amount) === 0) {
       return res.status(400).json({ error: 'clientId, system и ненулевой amount обязательны' });
     }
-    if (!['SBP', 'PROMPTPAY'].includes(system)) return res.status(400).json({ error: 'system must be SBP or PROMPTPAY' });
+    if (!['SBP', 'PROMPTPAY', 'ESIM'].includes(system)) return res.status(400).json({ error: 'system must be SBP, PROMPTPAY or ESIM' });
 
     const { allocation, client } = await allocate(clientId, req.admin?.sub || null, system, Number(amount), note || null);
     res.status(201).json(serialize({ ...allocation, client: { name: client.name }, balances: {
-      depositBalance: client.depositBalance, sbpBalance: client.sbpBalance, promptpayBalance: client.promptpayBalance,
+      depositBalance: client.depositBalance, sbpBalance: client.sbpBalance, promptpayBalance: client.promptpayBalance, esimBalance: client.esimBalance,
     } }));
   } catch (e) {
     if (e.code === 'INSUFFICIENT_DEPOSIT') return res.status(400).json({ error: 'Недостаточно средств на депозите', code: e.code });

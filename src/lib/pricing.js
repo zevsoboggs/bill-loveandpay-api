@@ -1,10 +1,13 @@
 import config from '../config.js';
 import { toNum, round6 } from './money.js';
 
-// Effective margin (fraction) for a client on a given system.
+// Effective margin (fraction) for a client on a given service.
 export function marginFor(client, system) {
   if (system === 'SBP') {
     return client.sbpMargin != null ? toNum(client.sbpMargin) : config.sbp.defaultMargin;
+  }
+  if (system === 'ESIM') {
+    return client.esimMargin != null ? toNum(client.esimMargin) : config.esim.defaultMargin;
   }
   return client.promptpayMargin != null ? toNum(client.promptpayMargin) : config.promptpay.defaultMargin;
 }
