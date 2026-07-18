@@ -1,4 +1,5 @@
 import express from 'express';
+import axios from 'axios';
 import helmet from 'helmet';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
@@ -34,6 +35,18 @@ app.use(express.json({ limit: '1mb' }));
 
 // ─── Health ─────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true, service: 'bill.loveandpay.io', time: new Date().toISOString() }));
+
+// Diagnostic: report this server's outbound (egress) public IP. Use it to verify
+// which IP third-party APIs (CryptoOffice) see — whitelist Railway's static
+// outbound IPs (Settings → Networking → Enable Static IPs) there.
+app.get('/api/diag/egress-ip', async (req, res) => {
+  try {
+    const { data } = await axios.get('https://api.ipify.org?format=json', { timeout: 8000 });
+    res.json({ egressIp: data.ip, note: 'Whitelist ALL Railway static outbound IPs in the CryptoOffice API-key settings.' });
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
 app.get('/', (req, res) => res.json({ service: 'Love&Pay Billing API', docs: '/docs', health: '/health' }));
 
 // ─── Swagger (public relay API docs) ─────────────────────────────────────────
