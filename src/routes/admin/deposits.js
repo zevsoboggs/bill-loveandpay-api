@@ -3,6 +3,7 @@ import prisma from '../../db.js';
 import { parseList, sendList } from '../../lib/refine.js';
 import { serialize } from '../../lib/money.js';
 import { creditDeposit } from '../../lib/ledger.js';
+import { dispatch, EVENTS } from '../../services/webhooks.js';
 
 const router = Router();
 
@@ -44,6 +45,7 @@ router.post('/', async (req, res) => {
     });
     if (finalStatus === 'CREDITED') {
       await creditDeposit(clientId, Number(amountUsdt), { refId: deposit.id, note: note || 'Manual deposit' });
+      dispatch(clientId, EVENTS.DEPOSIT_CREDITED, { amountUsdt: Number(amountUsdt), network: network || 'TRC-20', source: 'manual', depositId: deposit.id });
     }
     res.status(201).json(serialize(deposit));
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -67,6 +69,7 @@ router.patch('/:id', async (req, res) => {
     // Credit only on the PENDING/CONFIRMED → CREDITED transition (never double-credit).
     if (status === 'CREDITED' && existing.status !== 'CREDITED') {
       await creditDeposit(existing.clientId, Number(existing.amountUsdt), { refId: existing.id, note: 'Deposit credited' });
+      dispatch(existing.clientId, EVENTS.DEPOSIT_CREDITED, { amountUsdt: Number(existing.amountUsdt), network: existing.network, source: 'manual', depositId: existing.id });
     }
     res.json(serialize(updated));
   } catch (e) { res.status(500).json({ error: e.message }); }

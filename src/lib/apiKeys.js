@@ -9,6 +9,10 @@ export function generateApiSecret() {
   return 'ls_' + crypto.randomBytes(32).toString('hex'); // ls = loveandpay secret
 }
 
+export function generateWebhookSecret() {
+  return 'whsec_' + crypto.randomBytes(24).toString('hex');
+}
+
 // Constant-time compare to avoid timing leaks on the secret.
 export function safeEqual(a, b) {
   const ba = Buffer.from(String(a || ''));

@@ -103,6 +103,11 @@ model Client {
   portalEnabled Boolean @default(false)
   lastLoginAt   DateTime?
 
+  // Outbound webhooks — signed event notifications to the partner's endpoint.
+  webhookUrl     String?
+  webhookSecret  String?
+  webhookEnabled Boolean @default(false)
+
   // Balances (all in USDT). depositBalance = unallocated pool that the admin
   // distributes into the per-service balances.
   depositBalance    Decimal @default(0) @db.Decimal(20, 6)
@@ -139,8 +144,30 @@ model Client {
   requestLogs  ApiRequestLog[]
   cardApplications CardApplication[]
   esims        Esim[]
+  webhookDeliveries WebhookDelivery[]
 
   @@map("clients")
+}
+
+// ─── Webhook delivery log ────────────────────────────────────────────────────
+model WebhookDelivery {
+  id         String   @id @default(cuid())
+  clientId   String
+  event      String
+  url        String
+  payload    Json
+  status     String   @default("PENDING") // PENDING | SUCCESS | FAILED
+  httpStatus Int?
+  attempts   Int      @default(0)
+  error      String?
+  createdAt  DateTime @default(now())
+  deliveredAt DateTime?
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([event])
+  @@map("webhook_deliveries")
 }
 
 // ─── Issued eSIMs (Yesim) ────────────────────────────────────────────────────

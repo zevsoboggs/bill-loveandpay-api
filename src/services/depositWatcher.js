@@ -5,6 +5,7 @@ import prisma from '../db.js';
 import cryptoOffice from '../services/cryptoOffice.js';
 import { creditDeposit } from '../lib/ledger.js';
 import { toNum, round6 } from '../lib/money.js';
+import { dispatch, EVENTS } from './webhooks.js';
 
 const DUST = 0.5; // ignore arrivals below this (USDT)
 
@@ -36,6 +37,7 @@ export async function checkClient(clientId) {
     await creditDeposit(client.id, delta, { refId: deposit.id, note: 'On-chain USDT deposit' });
     await prisma.client.update({ where: { id: client.id }, data: { depositWalletBaseline: round6(onchain) } });
     console.log(`[depositWatcher] ${client.name}: +${delta} USDT credited`);
+    dispatch(client.id, EVENTS.DEPOSIT_CREDITED, { amountUsdt: delta, network: 'TRC-20', source: 'on-chain', depositId: deposit.id });
     return { credited: delta, newBalance: onchain };
   }
 

@@ -7,6 +7,7 @@ import { eurToUsdt } from './fx.js';
 import { priceFromCost } from './pricing.js';
 import { chargeSystem, refundSystem } from './ledger.js';
 import { toNum, round6 } from './money.js';
+import { dispatch, EVENTS } from '../services/webhooks.js';
 
 let plansCache = { at: 0, list: [] };
 export async function loadPlans() {
@@ -21,10 +22,11 @@ export const findPlan = async (planId) => (await loadPlans()).find((p) => String
 export async function annotatePlan(client, plan) {
   const costUsdt = await eurToUsdt(toNum(plan.price));
   const price = priceFromCost(client, 'ESIM', costUsdt);
+  // White-label: never expose the upstream provider (carrier operators / provider CDN).
   return {
     id: plan.id, name: plan.name, country: plan.countries_included, countryIso2: plan.countryIso2,
-    data: plan.data, dataUnit: plan.data_unit, days: plan.days, operators: plan.operators,
-    planType: plan.plan_type, image: plan.image,
+    data: plan.data, dataUnit: plan.data_unit, days: plan.days,
+    planType: plan.plan_type,
     priceEur: toNum(plan.price), priceUsdt: price.chargedUsdt, marginRate: price.marginRate,
   };
 }
@@ -78,6 +80,7 @@ export async function issue(client, planId, count = 1) {
   } catch (e) {
     await refundSystem(client.id, 'ESIM', price.chargedUsdt, { refId: tx.id, note: 'eSIM issue failed — refund' });
     await prisma.transaction.update({ where: { id: tx.id }, data: { status: 'FAILED', metadata: { ...tx.metadata, error: String(e.response?.data || e.message).slice(0, 200) } } });
+    dispatch(client.id, EVENTS.PAYMENT_FAILED, { system: 'ESIM', transactionId: tx.id, amountUsdt: price.chargedUsdt, error: 'ESIM_FAILED' });
     throw err('Не удалось выпустить eSIM, средства возвращены', 'ESIM_FAILED');
   }
 
@@ -93,6 +96,11 @@ export async function issue(client, planId, count = 1) {
   })));
 
   await prisma.transaction.update({ where: { id: tx.id }, data: { status: 'COMPLETED', providerRef: esims.map((e) => e.iccid).join(',') || null } });
+
+  const esimSummary = esims.map((e) => ({ iccid: e.iccid, qrcode: e.qrcode, status: e.status_qr }));
+  dispatch(client.id, EVENTS.PAYMENT_COMPLETED, { system: 'ESIM', transactionId: tx.id, amountUsdt: price.chargedUsdt, sourceAmount: round6(toNum(plan.price) * count), sourceCurrency: 'EUR' });
+  dispatch(client.id, EVENTS.ESIM_ISSUED, { transactionId: tx.id, planName: plan.name, country: plan.countries_included, count, amountUsdt: price.chargedUsdt, esims: esimSummary });
+
   return { transactionId: tx.id, amountUsdt: price.chargedUsdt, count, esims };
 }
 

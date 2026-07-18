@@ -6,6 +6,7 @@ import sbp from '../../services/sbp.js';
 import { priceFromCost } from '../../lib/pricing.js';
 import { chargeSystem, refundSystem } from '../../lib/ledger.js';
 import { serialize, toNum } from '../../lib/money.js';
+import { dispatch, EVENTS } from '../../services/webhooks.js';
 
 const router = Router();
 
@@ -80,6 +81,7 @@ router.post('/pay', async (req, res) => {
     // Refund the client — money was debited but the QR did not go through.
     await refundSystem(client.id, 'SBP', price.chargedUsdt, { refId: tx.id, note: 'SBP payment failed — refund' });
     await prisma.transaction.update({ where: { id: tx.id }, data: { status: 'FAILED', metadata: { ...tx.metadata, error: String(e.response?.data?.error || e.message).slice(0, 200) } } });
+    dispatch(client.id, EVENTS.PAYMENT_FAILED, { system: 'SBP', transactionId: tx.id, amountUsdt: price.chargedUsdt, error: 'SBP_FAILED' });
     return res.status(502).json({ error: 'Оплата СБП не прошла, средства возвращены', code: 'SBP_FAILED' });
   }
 
@@ -90,6 +92,12 @@ router.post('/pay', async (req, res) => {
       status: 'COMPLETED', providerRef: result.id ? String(result.id) : null,
       metadata: { ...tx.metadata, providerResult: { total: result.paymentDetails?.total, merchant: result.paymentDetails?.merchant, bank: result.paymentDetails?.bank } },
     },
+  });
+
+  dispatch(client.id, EVENTS.PAYMENT_COMPLETED, {
+    system: 'SBP', transactionId: updated.id, amountUsdt: price.chargedUsdt,
+    sourceAmount: result.paymentDetails?.total ?? quote.rubAmount, sourceCurrency: 'RUB',
+    providerRef: updated.providerRef, merchant: result.paymentDetails?.merchant, bank: result.paymentDetails?.bank,
   });
 
   res.json(serialize({

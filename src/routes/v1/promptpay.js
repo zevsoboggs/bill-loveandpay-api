@@ -6,6 +6,7 @@ import promptpay from '../../services/promptpay.js';
 import { priceFromCost } from '../../lib/pricing.js';
 import { chargeSystem, refundSystem } from '../../lib/ledger.js';
 import { serialize, toNum } from '../../lib/money.js';
+import { dispatch, EVENTS } from '../../services/webhooks.js';
 
 const router = Router();
 
@@ -98,6 +99,7 @@ router.post('/pay', async (req, res) => {
   } catch (e) {
     await refundSystem(client.id, 'PROMPTPAY', price.chargedUsdt, { refId: tx.id, note: 'PromptPay failed — refund' });
     await prisma.transaction.update({ where: { id: tx.id }, data: { status: 'FAILED', metadata: { ...tx.metadata, error: String(e.response?.data || e.message).slice(0, 200) } } });
+    dispatch(client.id, EVENTS.PAYMENT_FAILED, { system: 'PROMPTPAY', transactionId: tx.id, amountUsdt: price.chargedUsdt, error: 'PROMPTPAY_FAILED' });
     return res.status(502).json({ error: 'Оплата PromptPay не прошла, средства возвращены', code: 'PROMPTPAY_FAILED' });
   }
 
@@ -113,6 +115,13 @@ router.post('/pay', async (req, res) => {
       metadata: { ...tx.metadata, ppTxId, providerStatus, slipUrl, receipt: payResult?.чек || null },
     },
   });
+
+  if (updated.status === 'COMPLETED') {
+    dispatch(client.id, EVENTS.PAYMENT_COMPLETED, {
+      system: 'PROMPTPAY', transactionId: updated.id, amountUsdt: price.chargedUsdt,
+      sourceAmount: Number(amountThb), sourceCurrency: 'THB', providerRef: ppTxId || null, slipUrl,
+    });
+  }
 
   res.json(serialize({
     success: true,

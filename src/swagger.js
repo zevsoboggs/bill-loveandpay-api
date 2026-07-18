@@ -130,16 +130,42 @@ export const openapiSpec = {
     '/esim/sim/{iccid}': { get: { tags: ['eSIM'], summary: 'Статус eSIM (sim_info)', parameters: [{ name: 'iccid', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'OK' } } } },
     '/esim/orders': { get: { tags: ['eSIM'], summary: 'Заказы eSIM', responses: { 200: { description: 'OK' } } } },
     '/esim/supported-devices': { get: { tags: ['eSIM'], summary: 'Поддерживаемые устройства', responses: { 200: { description: 'OK' } } } },
-    '/esim/allowed-operators': { get: { tags: ['eSIM'], summary: 'Доступные операторы', responses: { 200: { description: 'OK' } } } },
     '/esim/cancel': {
       post: { tags: ['eSIM'], summary: 'Отменить тариф eSIM', requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['iccid'], properties: { iccid: { type: 'string' } } } } } }, responses: { 200: { description: 'OK' } } },
+    },
+    '/webhook': {
+      get: { tags: ['Webhooks'], summary: 'Текущая конфигурация вебхука', responses: { 200: { description: 'url, enabled, secret, events[]' } } },
+      put: {
+        tags: ['Webhooks'], summary: 'Задать URL и включить/выключить вебхук',
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { url: { type: 'string', example: 'https://your-app.com/webhooks/loveandpay' }, enabled: { type: 'boolean' } } } } } },
+        responses: { 200: { description: 'Обновлено' }, 400: { description: 'Некорректный URL' } },
+      },
+    },
+    '/webhook/test': {
+      post: { tags: ['Webhooks'], summary: 'Отправить тестовое событие на ваш URL', responses: { 200: { description: 'Доставлено (httpStatus вашего эндпоинта)' }, 400: { description: 'URL не задан или недоступен' } } },
+    },
+    '/webhook/rotate-secret': {
+      post: { tags: ['Webhooks'], summary: 'Перевыпустить секрет подписи', responses: { 200: { description: '{ secret }' } } },
+    },
+    '/webhook/deliveries': {
+      get: { tags: ['Webhooks'], summary: 'Журнал доставок вебхуков', responses: { 200: { description: 'Последние доставки со статусами' } } },
     },
   },
   tags: [
     { name: 'Account', description: 'Баланс и настройки клиента' },
     { name: 'SBP', description: 'СБП — оплата через USDT' },
     { name: 'PromptPay', description: 'Тайские QR коды' },
-    { name: 'eSIM', description: 'eSIM (Yesim) — тарифы, выпуск, пополнение' },
+    { name: 'eSIM', description: 'eSIM — тарифы, выпуск, пополнение' },
+    {
+      name: 'Webhooks',
+      description:
+        'Уведомления о событиях на ваш эндпоинт (HTTP POST, JSON).\n\n' +
+        '**События:** `deposit.credited` (зачислен депозит), `payment.completed` / `payment.failed` (оплата СБП/PromptPay/eSIM), `esim.issued` (выпущена eSIM), `webhook.test` (тест).\n\n' +
+        '**Формат тела:**\n```json\n{\n  "id": "evt_…",\n  "event": "payment.completed",\n  "created": "2026-07-19T12:00:00.000Z",\n  "data": { "system": "SBP", "transactionId": "…", "amountUsdt": 12.34, "sourceAmount": 1000, "sourceCurrency": "RUB" }\n}\n```\n\n' +
+        '**Заголовки:** `X-LnP-Event` — тип события; `X-LnP-Signature` — подпись вида `sha256=<hex>`.\n\n' +
+        '**Проверка подписи:** `HMAC-SHA256(secret, rawBody)` должно совпасть с `X-LnP-Signature`. Секрет — в конфигурации вебхука (GET `/webhook`).\n\n' +
+        'Отвечайте `2xx` для подтверждения. При ошибке — до 3 повторов. Настроить URL можно в кабинете (API-доступ) или через `PUT /webhook`.',
+    },
   ],
 };
 

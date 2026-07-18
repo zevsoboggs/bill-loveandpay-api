@@ -6,6 +6,7 @@ import balance from './balance.js';
 import sbp from './sbp.js';
 import promptpay from './promptpay.js';
 import esim from './esim.js';
+import webhook from './webhook.js';
 
 const router = Router();
 
@@ -23,6 +24,7 @@ router.use(limiter);
 router.use(clientAuth); // API key + secret + IP whitelist
 
 router.use('/balance', balance);
+router.use('/webhook', webhook);
 router.use('/sbp', requireService('SBP'), sbp);
 router.use('/promptpay', requireService('PROMPTPAY'), promptpay);
 router.use('/esim', requireService('ESIM'), esim);

@@ -12,6 +12,7 @@ const publicSelect = {
   id: true, name: true, email: true, company: true, status: true,
   apiKey: true, apiSecret: true, ipRestricted: true,
   portalEnabled: true, lastLoginAt: true,
+  webhookUrl: true, webhookEnabled: true,
   depositBalance: true, sbpBalance: true, promptpayBalance: true, esimBalance: true,
   sbpMargin: true, promptpayMargin: true, esimMargin: true,
   sbpEnabled: true, promptpayEnabled: true, esimEnabled: true,
