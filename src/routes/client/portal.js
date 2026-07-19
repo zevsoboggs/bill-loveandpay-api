@@ -101,6 +101,13 @@ router.get('/statement', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /api/client/api-logs — this partner's own API request log
+router.get('/api-logs', async (req, res) => {
+  const take = Math.min(parseInt(req.query.limit || '100', 10) || 100, 500);
+  const rows = await prisma.apiRequestLog.findMany({ where: { clientId: req.portalClient.id }, orderBy: { createdAt: 'desc' }, take });
+  res.json(serialize(rows));
+});
+
 // GET /api/client/deposits
 router.get('/deposits', async (req, res) => {
   const rows = await prisma.deposit.findMany({ where: { clientId: req.portalClient.id }, orderBy: { createdAt: 'desc' }, take: 100 });

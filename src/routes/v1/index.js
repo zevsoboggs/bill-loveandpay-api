@@ -2,6 +2,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { clientAuth } from '../../middleware/clientAuth.js';
 import { requireService } from '../../middleware/requireService.js';
+import { apiLogger } from '../../middleware/apiLogger.js';
 import balance from './balance.js';
 import sbp from './sbp.js';
 import promptpay from './promptpay.js';
@@ -24,6 +25,7 @@ const limiter = rateLimit({
 
 router.use(limiter);
 router.use(clientAuth); // API key + secret + IP whitelist
+router.use(apiLogger); // log every relay request (status + duration) after response
 
 router.use('/balance', balance);
 router.use('/webhook', webhook);

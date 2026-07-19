@@ -378,17 +378,20 @@ model LedgerEntry {
 
 // ─── Lightweight relay API request log ──────────────────────────────────────
 model ApiRequestLog {
-  id        String   @id @default(cuid())
-  clientId  String?
-  method    String
-  path      String
-  ip        String?
-  status    Int?
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  clientId   String?
+  method     String
+  path       String
+  ip         String?
+  status     Int?
+  durationMs Int?
+  sandbox    Boolean  @default(false)
+  createdAt  DateTime @default(now())
 
   client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
 
   @@index([clientId])
+  @@index([createdAt])
   @@map("api_request_logs")
 }
 

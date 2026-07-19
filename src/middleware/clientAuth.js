@@ -45,11 +45,7 @@ export async function clientAuth(req, res, next) {
     req.client = client;
     req.clientIp = ip;
     req.sandbox = isSandbox;
-
-    // Fire-and-forget request log.
-    prisma.apiRequestLog
-      .create({ data: { clientId: client.id, method: req.method, path: req.originalUrl, ip } })
-      .catch(() => {});
+    // Request is logged by the apiLogger middleware after the response completes.
 
     next();
   } catch (e) {
