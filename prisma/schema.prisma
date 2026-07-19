@@ -97,6 +97,9 @@ model Client {
   // API access (relay). apiKey is public-ish id; apiSecret is the bearer secret.
   apiKey    String  @unique
   apiSecret String
+  // Sandbox keys — same relay API but simulated (no charge / no provider call).
+  sandboxApiKey    String? @unique
+  sandboxApiSecret String?
   // If true, only IPs present in ipWhitelist may call the relay API.
   ipRestricted Boolean @default(true)
 
@@ -151,8 +154,28 @@ model Client {
   esims        Esim[]
   vpnKeys      VpnKey[]
   webhookDeliveries WebhookDelivery[]
+  idempotencyKeys   IdempotencyKey[]
 
   @@map("clients")
+}
+
+// ─── Idempotency (safe payment retries) ──────────────────────────────────────
+model IdempotencyKey {
+  id             String   @id @default(cuid())
+  clientId       String
+  key            String
+  method         String
+  path           String
+  requestHash    String
+  status         String   @default("PENDING") // PENDING | DONE
+  responseStatus Int?
+  responseBody   Json?
+  createdAt      DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, key])
+  @@map("idempotency_keys")
 }
 
 // ─── Provisioned VPN keys (vpnd.io) ──────────────────────────────────────────

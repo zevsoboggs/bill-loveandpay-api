@@ -5,6 +5,8 @@ import { parseList, sendList } from '../../lib/refine.js';
 import { serialize } from '../../lib/money.js';
 import { generateApiKey, generateApiSecret } from '../../lib/apiKeys.js';
 import { adjustBalance } from '../../lib/ledger.js';
+import { generateStatement } from '../../lib/statement.js';
+import { monthRange, collectStatement } from '../../lib/statementData.js';
 import cryptoOffice from '../../services/cryptoOffice.js';
 
 const router = Router();
@@ -12,6 +14,7 @@ const router = Router();
 const publicSelect = {
   id: true, name: true, email: true, company: true, status: true,
   apiKey: true, apiSecret: true, ipRestricted: true,
+  sandboxApiKey: true, sandboxApiSecret: true,
   portalEnabled: true, lastLoginAt: true,
   webhookUrl: true, webhookEnabled: true,
   depositBalance: true, sbpBalance: true, promptpayBalance: true, esimBalance: true, vpnBalance: true,
@@ -88,6 +91,7 @@ router.post('/', async (req, res) => {
         esimEnabled: !!esimEnabled,
         vpnEnabled: !!vpnEnabled,
         apiKey: generateApiKey(), apiSecret: generateApiSecret(),
+        sandboxApiKey: 'sk_' + generateApiKey().slice(3), sandboxApiSecret: 'ss_sbx_' + generateApiSecret().slice(3),
         depositWalletId, depositWalletAddress,
         portalEnabled: !!portalEnabled,
         passwordHash: password ? await bcrypt.hash(String(password), 10) : null,
@@ -141,6 +145,20 @@ router.post('/:id/adjust-balance', async (req, res) => {
     if (e.code === 'NEGATIVE_BALANCE') return res.status(400).json({ error: e.message, code: e.code });
     res.status(500).json({ error: e.message });
   }
+});
+
+// GET /api/admin/clients/:id/statement?month=YYYY-MM — monthly PDF statement (with profit)
+router.get('/:id/statement', async (req, res) => {
+  try {
+    const client = await prisma.client.findUnique({ where: { id: req.params.id } });
+    if (!client) return res.status(404).json({ error: 'Not found' });
+    const { from, to, monthLabel } = monthRange(req.query.month);
+    const data = await collectStatement(client, from, to);
+    const pdf = await generateStatement(client, { ...data, monthLabel, includeProfit: true });
+    res.set('Content-Type', 'application/pdf');
+    res.set('Content-Disposition', `attachment; filename="statement_${client.name.replace(/\W+/g, '_')}_${req.query.month || 'current'}.pdf"`);
+    res.send(pdf);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // POST /api/admin/clients/:id/rotate-keys — regenerate API credentials

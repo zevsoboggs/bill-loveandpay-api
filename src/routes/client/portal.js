@@ -9,6 +9,9 @@ import { generateApiKey, generateApiSecret, normalizeIp } from '../../lib/apiKey
 import { marginFor } from '../../lib/pricing.js';
 import { minDepositFor } from '../../lib/deposits.js';
 import { serialize, toNum } from '../../lib/money.js';
+import { toCsv, txColumns } from '../../lib/csv.js';
+import { generateStatement } from '../../lib/statement.js';
+import { monthRange, collectStatement } from '../../lib/statementData.js';
 
 const router = Router();
 
@@ -23,7 +26,7 @@ router.get('/me', async (req, res) => {
     balances: { deposit: toNum(c.depositBalance), sbp: toNum(c.sbpBalance), promptpay: toNum(c.promptpayBalance), esim: toNum(c.esimBalance), vpn: toNum(c.vpnBalance) },
     margins: { sbp: marginFor(c, 'SBP'), promptpay: marginFor(c, 'PROMPTPAY'), esim: marginFor(c, 'ESIM'), vpn: marginFor(c, 'VPN') },
     services: { sbp: c.sbpEnabled, promptpay: c.promptpayEnabled, esim: c.esimEnabled, vpn: c.vpnEnabled },
-    api: { apiKey: c.apiKey, apiSecret: c.apiSecret, ipRestricted: c.ipRestricted },
+    api: { apiKey: c.apiKey, apiSecret: c.apiSecret, ipRestricted: c.ipRestricted, sandboxApiKey: c.sandboxApiKey, sandboxApiSecret: c.sandboxApiSecret },
     deposit: { walletAddress: c.depositWalletAddress, network: c.depositWalletAddress ? 'TRC-20' : null, hasWallet: !!c.depositWalletId, minDeposit: minDepositFor(c) },
     ipWhitelist: c.ipWhitelist,
     counts: c._count,
@@ -49,6 +52,53 @@ router.get('/rates', async (req, res) => {
   }
   await Promise.all(tasks);
   res.json(out);
+});
+
+// GET /api/client/analytics?from=&to= — this partner's own spend analytics
+router.get('/analytics', async (req, res) => {
+  try {
+    const to = req.query.to ? new Date(req.query.to) : new Date();
+    const from = req.query.from ? new Date(req.query.from) : new Date(to.getTime() - 30 * 86400 * 1000);
+    const cid = req.portalClient.id;
+
+    const rows = await prisma.$queryRaw`
+      SELECT date_trunc('day', "createdAt") AS day, system, COUNT(*)::int AS count, COALESCE(SUM("chargedUsdt"),0) AS spent
+      FROM transactions WHERE "clientId" = ${cid} AND status = 'COMPLETED' AND "createdAt" >= ${from} AND "createdAt" <= ${to}
+      GROUP BY day, system ORDER BY day ASC`;
+    const byDay = {};
+    for (const r of rows) {
+      const key = new Date(r.day).toISOString().slice(0, 10);
+      byDay[key] ||= { day: key, SBP: 0, PROMPTPAY: 0, ESIM: 0, VPN: 0, spent: 0, count: 0 };
+      byDay[key][r.system] = toNum(r.spent); byDay[key].spent += toNum(r.spent); byDay[key].count += r.count;
+    }
+    const bySystem = await prisma.transaction.groupBy({ by: ['system'], where: { clientId: cid, status: 'COMPLETED', createdAt: { gte: from, lte: to } }, _sum: { chargedUsdt: true }, _count: true });
+    const totals = { spent: 0, count: 0, systems: {} };
+    for (const s of bySystem) { totals.systems[s.system] = { spent: toNum(s._sum.chargedUsdt), count: s._count }; totals.spent += toNum(s._sum.chargedUsdt); totals.count += s._count; }
+    res.json({ range: { from, to }, series: Object.values(byDay), totals });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/client/transactions/export — CSV of this partner's transactions
+router.get('/transactions/export', async (req, res) => {
+  try {
+    const rows = await prisma.transaction.findMany({ where: { clientId: req.portalClient.id }, orderBy: { createdAt: 'desc' }, take: 50000 });
+    const csv = toCsv(rows, txColumns);
+    res.set('Content-Type', 'text/csv; charset=utf-8');
+    res.set('Content-Disposition', `attachment; filename="my_transactions_${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.send(csv);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/client/statement?month=YYYY-MM — monthly PDF statement (no profit)
+router.get('/statement', async (req, res) => {
+  try {
+    const { from, to, monthLabel } = monthRange(req.query.month);
+    const data = await collectStatement(req.portalClient, from, to);
+    const pdf = await generateStatement(req.portalClient, { ...data, monthLabel, includeProfit: false });
+    res.set('Content-Type', 'application/pdf');
+    res.set('Content-Disposition', `attachment; filename="statement_${req.query.month || 'current'}.pdf"`);
+    res.send(pdf);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // GET /api/client/deposits

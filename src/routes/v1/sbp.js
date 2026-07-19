@@ -7,6 +7,8 @@ import { priceFromCost } from '../../lib/pricing.js';
 import { chargeSystem, refundSystem } from '../../lib/ledger.js';
 import { serialize, toNum } from '../../lib/money.js';
 import { dispatch, EVENTS } from '../../services/webhooks.js';
+import { idempotency } from '../../middleware/idempotency.js';
+import { sandboxPayment } from '../../lib/sandbox.js';
 
 const router = Router();
 
@@ -39,10 +41,11 @@ router.post('/quote', async (req, res) => {
 });
 
 // POST /v1/sbp/pay { qrData } — charge the client's SBP balance and pay the QR.
-router.post('/pay', async (req, res) => {
+router.post('/pay', idempotency, async (req, res) => {
   const client = req.client;
   const { qrData } = req.body || {};
   if (!qrData) return res.status(400).json({ error: 'qrData required' });
+  if (req.sandbox) return res.json(sandboxPayment({ system: 'SBP', merchant: 'Sandbox Merchant', rubAmount: 1000 }));
 
   // 1) Authoritative amount from the QR (never trust client-supplied numbers).
   let quote;

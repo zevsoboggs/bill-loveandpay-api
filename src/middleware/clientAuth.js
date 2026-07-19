@@ -18,11 +18,16 @@ export async function clientAuth(req, res, next) {
       return res.status(401).json({ error: 'Missing X-API-Key / X-API-Secret' });
     }
 
-    const client = await prisma.client.findUnique({
-      where: { apiKey: String(apiKey) },
+    const client = await prisma.client.findFirst({
+      where: { OR: [{ apiKey: String(apiKey) }, { sandboxApiKey: String(apiKey) }] },
       include: { ipWhitelist: true },
     });
-    if (!client || !safeEqual(apiSecret, client.apiSecret)) {
+    if (!client) return res.status(401).json({ error: 'Invalid API credentials' });
+
+    // Sandbox keys: simulated mode, no IP restriction.
+    const isSandbox = client.sandboxApiKey === String(apiKey);
+    const expectedSecret = isSandbox ? client.sandboxApiSecret : client.apiSecret;
+    if (!safeEqual(apiSecret, expectedSecret)) {
       return res.status(401).json({ error: 'Invalid API credentials' });
     }
     if (client.status !== 'ACTIVE') {
@@ -30,7 +35,7 @@ export async function clientAuth(req, res, next) {
     }
 
     const ip = clientIp(req);
-    if (client.ipRestricted) {
+    if (!isSandbox && client.ipRestricted) {
       const allowed = client.ipWhitelist.some((w) => w.ip === ip);
       if (!allowed) {
         return res.status(403).json({ error: `IP ${ip} is not whitelisted`, code: 'IP_NOT_ALLOWED' });
@@ -39,6 +44,7 @@ export async function clientAuth(req, res, next) {
 
     req.client = client;
     req.clientIp = ip;
+    req.sandbox = isSandbox;
 
     // Fire-and-forget request log.
     prisma.apiRequestLog

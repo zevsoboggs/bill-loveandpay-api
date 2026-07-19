@@ -5,6 +5,8 @@ import prisma from '../../db.js';
 import yesim from '../../services/yesim.js';
 import { catalog, findPlan, annotatePlan, issue, topup } from '../../lib/esimBilling.js';
 import { serialize, toNum } from '../../lib/money.js';
+import { idempotency } from '../../middleware/idempotency.js';
+import { sandboxEsim, sandboxPayment } from '../../lib/sandbox.js';
 
 const router = Router();
 
@@ -23,9 +25,10 @@ router.get('/plans/:id', async (req, res) => {
 });
 
 // POST /v1/esim/issue { planId, count } — buy eSIM(s)
-router.post('/issue', async (req, res) => {
+router.post('/issue', idempotency, async (req, res) => {
   const { planId, count } = req.body || {};
   if (!planId) return res.status(400).json({ error: 'planId required' });
+  if (req.sandbox) return res.json(sandboxEsim(Math.max(1, Math.min(parseInt(count || 1, 10) || 1, 50))));
   try {
     const r = await issue(req.client, planId, count || 1);
     res.json(serialize({ success: true, transactionId: r.transactionId, amountUsdt: r.amountUsdt, count: r.count,
@@ -39,9 +42,10 @@ router.post('/issue', async (req, res) => {
 });
 
 // POST /v1/esim/topup { iccid, planId }
-router.post('/topup', async (req, res) => {
+router.post('/topup', idempotency, async (req, res) => {
   const { iccid, planId } = req.body || {};
   if (!iccid || !planId) return res.status(400).json({ error: 'iccid и planId обязательны' });
+  if (req.sandbox) return res.json(sandboxPayment({ system: 'ESIM', iccid }));
   try {
     res.json(serialize({ success: true, ...(await topup(req.client, iccid, planId)) }));
   } catch (e) {

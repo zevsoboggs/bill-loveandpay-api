@@ -7,6 +7,7 @@ import transactions from './transactions.js';
 import ipWhitelist from './ipWhitelist.js';
 import ledger from './ledger.js';
 import dashboard from './dashboard.js';
+import analytics from './analytics.js';
 import cardApplications from './cardApplications.js';
 import esims from './esims.js';
 import vpnKeys from './vpnKeys.js';
@@ -26,5 +27,6 @@ router.use('/card-applications', cardApplications);
 router.use('/esims', esims);
 router.use('/vpn-keys', vpnKeys);
 router.use('/dashboard', dashboard);
+router.use('/analytics', analytics);
 
 export default router;

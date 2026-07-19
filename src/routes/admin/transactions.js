@@ -2,8 +2,27 @@ import { Router } from 'express';
 import prisma from '../../db.js';
 import { parseList, sendList } from '../../lib/refine.js';
 import { serialize } from '../../lib/money.js';
+import { toCsv, txColumns } from '../../lib/csv.js';
 
 const router = Router();
+
+// GET /api/admin/transactions/export?system=&status=&clientId=&from=&to= — CSV
+router.get('/export', async (req, res) => {
+  try {
+    const where = {};
+    for (const f of ['system', 'status', 'clientId']) if (req.query[f]) where[f] = req.query[f];
+    if (req.query.from || req.query.to) {
+      where.createdAt = {};
+      if (req.query.from) where.createdAt.gte = new Date(req.query.from);
+      if (req.query.to) where.createdAt.lte = new Date(req.query.to);
+    }
+    const rows = await prisma.transaction.findMany({ where, orderBy: { createdAt: 'desc' }, take: 50000 });
+    const csv = toCsv(rows, txColumns);
+    res.set('Content-Type', 'text/csv; charset=utf-8');
+    res.set('Content-Disposition', `attachment; filename="transactions_${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.send(csv);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // GET /api/admin/transactions — read-only; filter by system/status/clientId
 router.get('/', async (req, res) => {

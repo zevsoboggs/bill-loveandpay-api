@@ -4,6 +4,8 @@ import prisma from '../../db.js';
 import * as vpnd from '../../services/vpnd.js';
 import { catalog, buy, myKeys } from '../../lib/vpnBilling.js';
 import { serialize, toNum } from '../../lib/money.js';
+import { idempotency } from '../../middleware/idempotency.js';
+import { sandboxVpn } from '../../lib/sandbox.js';
 
 const router = Router();
 
@@ -14,9 +16,10 @@ router.get('/locations', async (req, res) => {
 });
 
 // POST /v1/vpn/buy { locationId } | { rfHost }
-router.post('/buy', async (req, res) => {
+router.post('/buy', idempotency, async (req, res) => {
   const { locationId, rfHost } = req.body || {};
   if (!locationId && !rfHost) return res.status(400).json({ error: 'locationId или rfHost обязательны' });
+  if (req.sandbox) return res.json(sandboxVpn());
   try {
     const r = await buy(req.client, { locationId, rfHost });
     res.json(serialize({
