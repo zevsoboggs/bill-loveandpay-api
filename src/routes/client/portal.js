@@ -2,6 +2,8 @@
 import { Router } from 'express';
 import prisma from '../../db.js';
 import cryptoOffice from '../../services/cryptoOffice.js';
+import sbp from '../../services/sbp.js';
+import promptpay from '../../services/promptpay.js';
 import { checkClient } from '../../services/depositWatcher.js';
 import { generateApiKey, generateApiSecret, normalizeIp } from '../../lib/apiKeys.js';
 import { marginFor } from '../../lib/pricing.js';
@@ -26,6 +28,27 @@ router.get('/me', async (req, res) => {
     ipWhitelist: c.ipWhitelist,
     counts: c._count,
   }));
+});
+
+// GET /api/client/rates — live SBP (USDT/RUB) & PromptPay (USDT/THB) rates for
+// the partner's enabled services. Short timeout + graceful degradation.
+const raceTimeout = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('timeout')), ms))]);
+router.get('/rates', async (req, res) => {
+  const c = req.portalClient;
+  const out = {};
+  const tasks = [];
+  if (c.sbpEnabled) {
+    tasks.push(raceTimeout(sbp.getRate(), 9000)
+      .then((r) => { out.sbp = { rubPerUsdt: Number(r?.rate) || null, source: r?.source || null, updatedAt: r?.updatedAt || null }; })
+      .catch(() => { out.sbp = { error: true }; }));
+  }
+  if (c.promptpayEnabled) {
+    tasks.push(raceTimeout(promptpay.getRate(), 9000)
+      .then((r) => { out.promptpay = { thbPerUsdt: Number(r?.данные?.курс_usdt_thb) || null, updatedAt: r?.данные?.обновлено || null }; })
+      .catch(() => { out.promptpay = { error: true }; }));
+  }
+  await Promise.all(tasks);
+  res.json(out);
 });
 
 // GET /api/client/deposits
