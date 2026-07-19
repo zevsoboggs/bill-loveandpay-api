@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { serialize, toNum } from '../../lib/money.js';
 import { marginFor } from '../../lib/pricing.js';
+import { minDepositFor } from '../../lib/deposits.js';
 
 const router = Router();
 
@@ -29,6 +30,7 @@ router.get('/', (req, res) => {
     },
     depositAddress: c.depositWalletAddress || null,
     depositNetwork: c.depositWalletAddress ? 'TRC-20' : null,
+    minDeposit: minDepositFor(c),
   }));
 });
 

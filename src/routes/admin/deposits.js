@@ -4,6 +4,7 @@ import { parseList, sendList } from '../../lib/refine.js';
 import { serialize } from '../../lib/money.js';
 import { creditDeposit } from '../../lib/ledger.js';
 import { dispatch, EVENTS } from '../../services/webhooks.js';
+import { minDepositFor } from '../../lib/deposits.js';
 
 const router = Router();
 
@@ -34,6 +35,12 @@ router.post('/', async (req, res) => {
     const { clientId, amountUsdt, network, txHash, address, status, note } = req.body || {};
     if (!clientId || !amountUsdt || Number(amountUsdt) <= 0) {
       return res.status(400).json({ error: 'clientId и положительный amountUsdt обязательны' });
+    }
+    const client = await prisma.client.findUnique({ where: { id: clientId } });
+    if (!client) return res.status(404).json({ error: 'Клиент не найден' });
+    const min = minDepositFor(client);
+    if (Number(amountUsdt) < min) {
+      return res.status(400).json({ error: `Минимальный депозит для этого партнёра — ${min} USDT`, code: 'BELOW_MIN_DEPOSIT', min });
     }
     const finalStatus = status || 'CREDITED';
     const deposit = await prisma.deposit.create({

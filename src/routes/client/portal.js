@@ -5,6 +5,7 @@ import cryptoOffice from '../../services/cryptoOffice.js';
 import { checkClient } from '../../services/depositWatcher.js';
 import { generateApiKey, generateApiSecret, normalizeIp } from '../../lib/apiKeys.js';
 import { marginFor } from '../../lib/pricing.js';
+import { minDepositFor } from '../../lib/deposits.js';
 import { serialize, toNum } from '../../lib/money.js';
 
 const router = Router();
@@ -21,7 +22,7 @@ router.get('/me', async (req, res) => {
     margins: { sbp: marginFor(c, 'SBP'), promptpay: marginFor(c, 'PROMPTPAY'), esim: marginFor(c, 'ESIM') },
     services: { sbp: c.sbpEnabled, promptpay: c.promptpayEnabled, esim: c.esimEnabled },
     api: { apiKey: c.apiKey, apiSecret: c.apiSecret, ipRestricted: c.ipRestricted },
-    deposit: { walletAddress: c.depositWalletAddress, network: c.depositWalletAddress ? 'TRC-20' : null, hasWallet: !!c.depositWalletId },
+    deposit: { walletAddress: c.depositWalletAddress, network: c.depositWalletAddress ? 'TRC-20' : null, hasWallet: !!c.depositWalletId, minDeposit: minDepositFor(c) },
     ipWhitelist: c.ipWhitelist,
     counts: c._count,
   }));

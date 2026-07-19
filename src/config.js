@@ -50,6 +50,12 @@ const config = {
     // EUR→USDT fallback if the live FX lookup fails.
     eurUsdFallback: num(process.env.EUR_USD_FALLBACK, 1.08),
   },
+
+  // Minimum deposit (USDT). eSIM-only partners get the lower threshold.
+  deposits: {
+    min: num(process.env.MIN_DEPOSIT_USDT, 1000),
+    minEsim: num(process.env.MIN_DEPOSIT_ESIM_USDT, 200),
+  },
 };
 
 export default config;
