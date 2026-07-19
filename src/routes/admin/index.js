@@ -9,6 +9,7 @@ import ledger from './ledger.js';
 import dashboard from './dashboard.js';
 import cardApplications from './cardApplications.js';
 import esims from './esims.js';
+import vpnKeys from './vpnKeys.js';
 
 const router = Router();
 
@@ -23,6 +24,7 @@ router.use('/ip-whitelist', ipWhitelist);
 router.use('/ledger', ledger);
 router.use('/card-applications', cardApplications);
 router.use('/esims', esims);
+router.use('/vpn-keys', vpnKeys);
 router.use('/dashboard', dashboard);
 
 export default router;

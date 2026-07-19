@@ -133,6 +133,16 @@ export const openapiSpec = {
     '/esim/cancel': {
       post: { tags: ['eSIM'], summary: 'Отменить тариф eSIM', requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['iccid'], properties: { iccid: { type: 'string' } } } } } }, responses: { 200: { description: 'OK' } } },
     },
+    '/vpn/locations': { get: { tags: ['VPN'], summary: 'Локации VPN + цена', responses: { 200: { description: 'rf[], ru[], world[], priceUsdt, durationDays' } } } },
+    '/vpn/buy': {
+      post: {
+        tags: ['VPN'], summary: 'Купить VPN-ключ (списание с VPN-баланса)',
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { locationId: { type: 'integer', description: 'ID локации (VLESS)' }, rfHost: { type: 'string', description: 'Хост RF-сервера (Shadowsocks, для РФ)' } } } } } },
+        responses: { 200: { description: 'Ключ (config + QR) + срок' }, 402: { description: 'Недостаточно средств' }, 502: { description: 'Ошибка провайдера, средства возвращены' } },
+      },
+    },
+    '/vpn/my': { get: { tags: ['VPN'], summary: 'Мои VPN-ключи', responses: { 200: { description: 'OK' } } } },
+    '/vpn/{id}/ovpn': { get: { tags: ['VPN'], summary: 'OpenVPN-конфиг ключа', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }, { name: 'proto', in: 'query', schema: { type: 'string', enum: ['tcp', 'udp', 'udp_ru'] } }], responses: { 200: { description: 'OK' } } } },
     '/webhook': {
       get: { tags: ['Webhooks'], summary: 'Текущая конфигурация вебхука', responses: { 200: { description: 'url, enabled, secret, events[]' } } },
       put: {
@@ -156,6 +166,7 @@ export const openapiSpec = {
     { name: 'SBP', description: 'СБП — оплата через USDT' },
     { name: 'PromptPay', description: 'Тайские QR коды' },
     { name: 'eSIM', description: 'eSIM — тарифы, выпуск, пополнение' },
+    { name: 'VPN', description: 'VPN — локации, покупка ключей (VLESS/Shadowsocks), OpenVPN' },
     {
       name: 'Webhooks',
       description:

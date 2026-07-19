@@ -14,9 +14,9 @@ const publicSelect = {
   apiKey: true, apiSecret: true, ipRestricted: true,
   portalEnabled: true, lastLoginAt: true,
   webhookUrl: true, webhookEnabled: true,
-  depositBalance: true, sbpBalance: true, promptpayBalance: true, esimBalance: true,
-  sbpMargin: true, promptpayMargin: true, esimMargin: true,
-  sbpEnabled: true, promptpayEnabled: true, esimEnabled: true,
+  depositBalance: true, sbpBalance: true, promptpayBalance: true, esimBalance: true, vpnBalance: true,
+  sbpMargin: true, promptpayMargin: true, esimMargin: true, vpnMargin: true,
+  sbpEnabled: true, promptpayEnabled: true, esimEnabled: true, vpnEnabled: true,
   depositWalletId: true, depositWalletAddress: true, depositWalletBaseline: true,
   createdAt: true, updatedAt: true,
   _count: { select: { transactions: true, deposits: true, ipWhitelist: true } },
@@ -55,8 +55,8 @@ router.get('/:id', async (req, res) => {
 // POST /api/admin/clients — create reseller (auto keys + optional deposit wallet)
 router.post('/', async (req, res) => {
   try {
-    const { name, email, company, status, ipRestricted, sbpMargin, promptpayMargin, esimMargin, createWallet, password, portalEnabled,
-      sbpEnabled, promptpayEnabled, esimEnabled } = req.body || {};
+    const { name, email, company, status, ipRestricted, sbpMargin, promptpayMargin, esimMargin, vpnMargin, createWallet, password, portalEnabled,
+      sbpEnabled, promptpayEnabled, esimEnabled, vpnEnabled } = req.body || {};
     if (!name) return res.status(400).json({ error: 'name обязателен' });
     if (portalEnabled && !email) return res.status(400).json({ error: 'Для кабинета клиента нужен email' });
     if (password && String(password).length < 8) return res.status(400).json({ error: 'Пароль минимум 8 символов' });
@@ -82,9 +82,11 @@ router.post('/', async (req, res) => {
         sbpMargin: sbpMargin != null ? Number(sbpMargin) : null,
         promptpayMargin: promptpayMargin != null ? Number(promptpayMargin) : null,
         esimMargin: esimMargin != null ? Number(esimMargin) : null,
+        vpnMargin: vpnMargin != null ? Number(vpnMargin) : null,
         sbpEnabled: sbpEnabled !== false,
         promptpayEnabled: promptpayEnabled !== false,
         esimEnabled: !!esimEnabled,
+        vpnEnabled: !!vpnEnabled,
         apiKey: generateApiKey(), apiSecret: generateApiSecret(),
         depositWalletId, depositWalletAddress,
         portalEnabled: !!portalEnabled,
@@ -99,8 +101,8 @@ router.post('/', async (req, res) => {
 // PATCH /api/admin/clients/:id
 router.patch('/:id', async (req, res) => {
   try {
-    const { name, email, company, status, ipRestricted, sbpMargin, promptpayMargin, esimMargin, password, portalEnabled,
-      sbpEnabled, promptpayEnabled, esimEnabled } = req.body || {};
+    const { name, email, company, status, ipRestricted, sbpMargin, promptpayMargin, esimMargin, vpnMargin, password, portalEnabled,
+      sbpEnabled, promptpayEnabled, esimEnabled, vpnEnabled } = req.body || {};
     const data = {};
     if (name !== undefined) data.name = name;
     if (email !== undefined) data.email = email || null;
@@ -111,9 +113,11 @@ router.patch('/:id', async (req, res) => {
     if (sbpEnabled !== undefined) data.sbpEnabled = !!sbpEnabled;
     if (promptpayEnabled !== undefined) data.promptpayEnabled = !!promptpayEnabled;
     if (esimEnabled !== undefined) data.esimEnabled = !!esimEnabled;
+    if (vpnEnabled !== undefined) data.vpnEnabled = !!vpnEnabled;
     if (sbpMargin !== undefined) data.sbpMargin = sbpMargin === null || sbpMargin === '' ? null : Number(sbpMargin);
     if (promptpayMargin !== undefined) data.promptpayMargin = promptpayMargin === null || promptpayMargin === '' ? null : Number(promptpayMargin);
     if (esimMargin !== undefined) data.esimMargin = esimMargin === null || esimMargin === '' ? null : Number(esimMargin);
+    if (vpnMargin !== undefined) data.vpnMargin = vpnMargin === null || vpnMargin === '' ? null : Number(vpnMargin);
     if (password) {
       if (String(password).length < 8) return res.status(400).json({ error: 'Пароль минимум 8 символов' });
       data.passwordHash = await bcrypt.hash(String(password), 10);
@@ -129,10 +133,10 @@ router.patch('/:id', async (req, res) => {
 router.post('/:id/adjust-balance', async (req, res) => {
   try {
     const { balanceType, amount, note } = req.body || {};
-    if (!['DEPOSIT', 'SBP', 'PROMPTPAY', 'ESIM'].includes(balanceType)) return res.status(400).json({ error: 'Неверный тип баланса' });
+    if (!['DEPOSIT', 'SBP', 'PROMPTPAY', 'ESIM', 'VPN'].includes(balanceType)) return res.status(400).json({ error: 'Неверный тип баланса' });
     if (amount === undefined || Number(amount) === 0) return res.status(400).json({ error: 'Ненулевая сумма обязательна' });
     const updated = await adjustBalance(req.params.id, req.admin?.sub || null, balanceType, Number(amount), note || 'Ручная корректировка');
-    res.json(serialize({ id: updated.id, depositBalance: updated.depositBalance, sbpBalance: updated.sbpBalance, promptpayBalance: updated.promptpayBalance, esimBalance: updated.esimBalance }));
+    res.json(serialize({ id: updated.id, depositBalance: updated.depositBalance, sbpBalance: updated.sbpBalance, promptpayBalance: updated.promptpayBalance, esimBalance: updated.esimBalance, vpnBalance: updated.vpnBalance }));
   } catch (e) {
     if (e.code === 'NEGATIVE_BALANCE') return res.status(400).json({ error: e.message, code: e.code });
     res.status(500).json({ error: e.message });

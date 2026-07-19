@@ -15,12 +15,12 @@ router.get('/stats', async (req, res) => {
       prisma.client.count({ where: { status: 'ACTIVE' } }),
       prisma.transaction.groupBy({ by: ['system'], _sum: { chargedUsdt: true, marginUsdt: true, providerCostUsdt: true }, _count: true }),
       prisma.transaction.groupBy({ by: ['status'], _count: true }),
-      prisma.client.aggregate({ _sum: { depositBalance: true, sbpBalance: true, promptpayBalance: true, esimBalance: true } }),
+      prisma.client.aggregate({ _sum: { depositBalance: true, sbpBalance: true, promptpayBalance: true, esimBalance: true, vpnBalance: true } }),
       prisma.deposit.aggregate({ _sum: { amountUsdt: true }, where: { status: 'CREDITED' } }),
     ]);
 
     const bySystem = {};
-    for (const s of ['SBP', 'PROMPTPAY', 'ESIM']) {
+    for (const s of ['SBP', 'PROMPTPAY', 'ESIM', 'VPN']) {
       const row = txAgg.find((r) => r.system === s);
       bySystem[s] = {
         count: row?._count || 0,
@@ -37,7 +37,8 @@ router.get('/stats', async (req, res) => {
         sbpUsdt: toNum(balAgg._sum.sbpBalance),
         promptpayUsdt: toNum(balAgg._sum.promptpayBalance),
         esimUsdt: toNum(balAgg._sum.esimBalance),
-        totalOnPlatformUsdt: toNum(balAgg._sum.depositBalance) + toNum(balAgg._sum.sbpBalance) + toNum(balAgg._sum.promptpayBalance) + toNum(balAgg._sum.esimBalance),
+        vpnUsdt: toNum(balAgg._sum.vpnBalance),
+        totalOnPlatformUsdt: toNum(balAgg._sum.depositBalance) + toNum(balAgg._sum.sbpBalance) + toNum(balAgg._sum.promptpayBalance) + toNum(balAgg._sum.esimBalance) + toNum(balAgg._sum.vpnBalance),
       },
       totalDepositedUsdt: toNum(depAgg._sum.amountUsdt),
       transactions: {

@@ -51,6 +51,17 @@ const config = {
     eurUsdFallback: num(process.env.EUR_USD_FALLBACK, 1.08),
   },
 
+  // VPN (vpnd.io reseller). 1-month VLESS Reality key per purchase; priced in USDT.
+  vpn: {
+    baseUrl: process.env.VPND_BASE_URL || 'https://vpnd.io',
+    username: process.env.VPND_USERNAME,
+    password: process.env.VPND_PASSWORD,
+    proxyUrl: process.env.VPND_PROXY_URL, // clean egress IP (vpnd Cloudflare blocks datacenters)
+    priceUsdt: num(process.env.VPN_PRICE_USDT, 3.0), // base cost per key
+    durationDays: num(process.env.VPN_DURATION_DAYS, 30),
+    defaultMargin: num(process.env.DEFAULT_VPN_MARGIN, 0.2),
+  },
+
   // Minimum deposit (USDT). eSIM-only partners get the lower threshold.
   deposits: {
     min: num(process.env.MIN_DEPOSIT_USDT, 1000),

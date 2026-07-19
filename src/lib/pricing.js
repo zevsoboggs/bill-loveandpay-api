@@ -9,6 +9,9 @@ export function marginFor(client, system) {
   if (system === 'ESIM') {
     return client.esimMargin != null ? toNum(client.esimMargin) : config.esim.defaultMargin;
   }
+  if (system === 'VPN') {
+    return client.vpnMargin != null ? toNum(client.vpnMargin) : config.vpn.defaultMargin;
+  }
   return client.promptpayMargin != null ? toNum(client.promptpayMargin) : config.promptpay.defaultMargin;
 }
 

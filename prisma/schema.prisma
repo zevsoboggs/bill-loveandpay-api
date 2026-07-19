@@ -28,6 +28,7 @@ enum PaymentSystem {
   SBP
   PROMPTPAY
   ESIM
+  VPN
 }
 
 enum DepositStatus {
@@ -58,6 +59,7 @@ enum BalanceType {
   SBP
   PROMPTPAY
   ESIM
+  VPN
 }
 
 enum CardAppStatus {
@@ -114,17 +116,20 @@ model Client {
   sbpBalance        Decimal @default(0) @db.Decimal(20, 6)
   promptpayBalance  Decimal @default(0) @db.Decimal(20, 6)
   esimBalance       Decimal @default(0) @db.Decimal(20, 6)
+  vpnBalance        Decimal @default(0) @db.Decimal(20, 6)
 
   // Per-client margin overrides (fraction). Null → platform default.
   sbpMargin       Decimal? @db.Decimal(6, 4)
   promptpayMargin Decimal? @db.Decimal(6, 4)
   esimMargin      Decimal? @db.Decimal(6, 4)
+  vpnMargin       Decimal? @db.Decimal(6, 4)
 
   // Service access — chosen per partner. A disabled service is hidden in the
   // cabinet and rejected on the relay API.
   sbpEnabled       Boolean @default(true)
   promptpayEnabled Boolean @default(true)
   esimEnabled      Boolean @default(false)
+  vpnEnabled       Boolean @default(false)
 
   // Dedicated CryptoOffice transit wallet for this client's USDT deposits.
   depositWalletId      String?
@@ -144,9 +149,36 @@ model Client {
   requestLogs  ApiRequestLog[]
   cardApplications CardApplication[]
   esims        Esim[]
+  vpnKeys      VpnKey[]
   webhookDeliveries WebhookDelivery[]
 
   @@map("clients")
+}
+
+// ─── Provisioned VPN keys (vpnd.io) ──────────────────────────────────────────
+model VpnKey {
+  id            String   @id @default(cuid())
+  clientId      String
+  locationId    Int?
+  locationLabel String?
+  country       String?
+  iso2          String?
+  protocol      String   @default("vless") // vless | shadowsocks
+  config        String   // the VLESS/SS key (the actual credential)
+  qr            String?
+  priceUsdt     Decimal? @db.Decimal(20, 6)
+  chargedUsdt   Decimal  @default(0) @db.Decimal(20, 6)
+  durationDays  Int      @default(30)
+  status        String   @default("ACTIVE")
+  expiresAt     DateTime?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@map("vpn_keys")
 }
 
 // ─── Webhook delivery log ────────────────────────────────────────────────────
