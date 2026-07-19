@@ -111,6 +111,10 @@ model Client {
   portalEnabled Boolean @default(false)
   lastLoginAt   DateTime?
 
+  // 2FA (Google Authenticator / TOTP) for the cabinet login.
+  totpSecret  String?
+  totpEnabled Boolean @default(false)
+
   // Outbound webhooks — signed event notifications to the partner's endpoint.
   webhookUrl     String?
   webhookSecret  String?
