@@ -11,6 +11,7 @@ export const EVENT_CATALOG = [
   { event: EVENTS.PAYMENT_FAILED, label: 'Платёж не прошёл', sample: { system: 'PROMPTPAY', amountUsdt: 8.1, error: 'PROMPTPAY_FAILED' } },
   { event: EVENTS.ESIM_ISSUED, label: 'eSIM выпущен', sample: { planName: 'Europe 5GB', country: 'EU', count: 1, amountUsdt: 6.3 } },
   { event: EVENTS.VPN_ISSUED, label: 'VPN-ключ выпущен', sample: { location: 'Germany, Frankfurt', protocol: 'vless', amountUsdt: 3.6 } },
+  { event: EVENTS.AML_CHECKED, label: 'AML-проверка выполнена', sample: { address: 'TR7NHqje…', network: 'TRON (TRC-20)', score: 89, riskLevel: 'high', verdict: 'reject', amountUsdt: 0.5 } },
 ];
 const EVENT_LIST = Object.values(EVENTS);
 const SAMPLES = Object.fromEntries(EVENT_CATALOG.map((e) => [e.event, e.sample]));

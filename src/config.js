@@ -68,6 +68,15 @@ const config = {
     apiKey: process.env.TRANSIT_API_KEY,
   },
 
+  // AML — Love&Pay address risk-check API (loveandpay-aml.fly.dev). Provider quota
+  // (our prepaid checks) is our cost; partners pay priceUsdt × (1 + amlMargin).
+  aml: {
+    baseUrl: process.env.AML_API_URL || 'https://loveandpay-aml.fly.dev',
+    apiKey: process.env.AML_API_KEY,
+    priceUsdt: num(process.env.AML_PRICE_USDT, 0.5), // partner price per check
+    defaultMargin: num(process.env.DEFAULT_AML_MARGIN, 0),
+  },
+
   // Minimum deposit (USDT). eSIM-only partners get the lower threshold.
   deposits: {
     min: num(process.env.MIN_DEPOSIT_USDT, 1000),

@@ -29,6 +29,7 @@ enum PaymentSystem {
   PROMPTPAY
   ESIM
   VPN
+  AML
 }
 
 enum DepositStatus {
@@ -60,6 +61,7 @@ enum BalanceType {
   PROMPTPAY
   ESIM
   VPN
+  AML
 }
 
 enum CardAppStatus {
@@ -131,12 +133,14 @@ model Client {
   promptpayBalance  Decimal @default(0) @db.Decimal(20, 6)
   esimBalance       Decimal @default(0) @db.Decimal(20, 6)
   vpnBalance        Decimal @default(0) @db.Decimal(20, 6)
+  amlBalance        Decimal @default(0) @db.Decimal(20, 6)
 
   // Per-client margin overrides (fraction). Null → platform default.
   sbpMargin       Decimal? @db.Decimal(6, 4)
   promptpayMargin Decimal? @db.Decimal(6, 4)
   esimMargin      Decimal? @db.Decimal(6, 4)
   vpnMargin       Decimal? @db.Decimal(6, 4)
+  amlMargin       Decimal? @db.Decimal(6, 4)
 
   // Service access — chosen per partner. A disabled service is hidden in the
   // cabinet and rejected on the relay API.
@@ -145,6 +149,7 @@ model Client {
   esimEnabled      Boolean @default(false)
   vpnEnabled       Boolean @default(false)
   transitEnabled   Boolean @default(false)
+  amlEnabled       Boolean @default(false)
 
   // Dedicated CryptoOffice transit wallet for this client's USDT deposits.
   depositWalletId      String?
@@ -168,6 +173,7 @@ model Client {
   webhookDeliveries WebhookDelivery[]
   idempotencyKeys   IdempotencyKey[]
   notifications     Notification[]
+  amlChecks         AmlCheck[]
 
   @@map("clients")
 }
@@ -290,6 +296,28 @@ model Esim {
   @@index([clientId])
   @@index([iccid])
   @@map("esims")
+}
+
+// ─── AML address risk checks (Love&Pay AML, PDF report) ──────────────────────
+model AmlCheck {
+  id           String   @id @default(cuid())
+  clientId     String
+  address      String
+  network      String?
+  score        Int?
+  riskLevel    String?  // low | medium | high
+  verdict      String?  // approve | review | reject
+  verdictTitle String?
+  reportHash   String?
+  chargedUsdt  Decimal  @default(0) @db.Decimal(20, 6)
+  sandbox      Boolean  @default(false)
+  transactionId String?
+  createdAt    DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, createdAt])
+  @@map("aml_checks")
 }
 
 // ─── Card program applications (клиентские заявки на карты) ──────────────────

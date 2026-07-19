@@ -32,7 +32,7 @@ router.post('/', async (req, res) => {
     if (!clientId || !system || amount === undefined || Number(amount) === 0) {
       return res.status(400).json({ error: 'clientId, system и ненулевой amount обязательны' });
     }
-    if (!['SBP', 'PROMPTPAY', 'ESIM', 'VPN'].includes(system)) return res.status(400).json({ error: 'system must be SBP, PROMPTPAY, ESIM or VPN' });
+    if (!['SBP', 'PROMPTPAY', 'ESIM', 'VPN', 'AML'].includes(system)) return res.status(400).json({ error: 'system must be SBP, PROMPTPAY, ESIM, VPN or AML' });
 
     const { allocation, client } = await allocate(clientId, req.admin?.sub || null, system, Number(amount), note || null);
     res.status(201).json(serialize({ ...allocation, client: { name: client.name }, balances: {

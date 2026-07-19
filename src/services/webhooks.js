@@ -11,6 +11,7 @@ export const EVENTS = {
   PAYMENT_FAILED: 'payment.failed',
   ESIM_ISSUED: 'esim.issued',
   VPN_ISSUED: 'vpn.issued',
+  AML_CHECKED: 'aml.checked',
 };
 
 // HMAC-SHA256 signature of the raw JSON body.

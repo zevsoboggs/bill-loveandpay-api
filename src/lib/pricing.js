@@ -12,6 +12,9 @@ export function marginFor(client, system) {
   if (system === 'VPN') {
     return client.vpnMargin != null ? toNum(client.vpnMargin) : config.vpn.defaultMargin;
   }
+  if (system === 'AML') {
+    return client.amlMargin != null ? toNum(client.amlMargin) : config.aml.defaultMargin;
+  }
   return client.promptpayMargin != null ? toNum(client.promptpayMargin) : config.promptpay.defaultMargin;
 }
 

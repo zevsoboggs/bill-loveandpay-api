@@ -1,5 +1,5 @@
 // Gate a relay sub-API behind the client's per-service access flag.
-const FIELD = { SBP: 'sbpEnabled', PROMPTPAY: 'promptpayEnabled', ESIM: 'esimEnabled', VPN: 'vpnEnabled', TRANSIT: 'transitEnabled' };
+const FIELD = { SBP: 'sbpEnabled', PROMPTPAY: 'promptpayEnabled', ESIM: 'esimEnabled', VPN: 'vpnEnabled', TRANSIT: 'transitEnabled', AML: 'amlEnabled' };
 
 export const requireService = (system) => (req, res, next) => {
   if (!req.client?.[FIELD[system]]) {

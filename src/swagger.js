@@ -151,6 +151,18 @@ export const openapiSpec = {
     },
     '/vpn/my': { get: { tags: ['VPN'], summary: 'Мои VPN-ключи', responses: { 200: { description: 'OK' } } } },
     '/vpn/{id}/ovpn': { get: { tags: ['VPN'], summary: 'OpenVPN-конфиг ключа', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }, { name: 'proto', in: 'query', schema: { type: 'string', enum: ['tcp', 'udp', 'udp_ru'] } }], responses: { 200: { description: 'OK' } } } },
+    '/aml/price': { get: { tags: ['AML'], summary: 'Цена одной проверки', responses: { 200: { description: '{ pricePerCheck, currency, networks[] }' } } } },
+    '/aml/check': {
+      post: {
+        tags: ['AML'], summary: 'Проверить адрес (списание с AML-баланса, 0.5 USDT)',
+        description: 'Проверяет адрес TRON / Ethereum / Bitcoin (сеть определяется автоматически) и возвращает риск-отчёт. PDF доступен по ссылке `reportUrl`. При сбое провайдера средства возвращаются.',
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['address'], properties: { address: { type: 'string', example: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t' } } } } } },
+        responses: { 200: { description: '{ check, result:{score,riskLevel,verdict,flags,recommendations}, reportUrl }' }, 400: { description: 'Некорректный адрес' }, 402: { description: 'Недостаточно средств на AML-балансе' }, 502: { description: 'AML-сервис недоступен, средства возвращены' } },
+      },
+    },
+    '/aml/checks': { get: { tags: ['AML'], summary: 'История проверок', parameters: [{ name: 'limit', in: 'query', schema: { type: 'integer' } }], responses: { 200: { description: 'OK' } } } },
+    '/aml/checks/{id}': { get: { tags: ['AML'], summary: 'Одна проверка', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'OK' }, 404: { description: 'Not found' } } } },
+    '/aml/checks/{id}/report': { get: { tags: ['AML'], summary: 'PDF-отчёт по проверке (без списания)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'application/pdf' }, 404: { description: 'Not found' } } } },
     '/transit/networks': { get: { tags: ['Transit'], summary: 'Доступные сети/монеты', responses: { 200: { description: 'TRON/BSC/ETH/BTC + id монет' } } } },
     '/transit/wallets': {
       get: { tags: ['Transit'], summary: 'Мои транзитные кошельки', parameters: [{ name: 'balances', in: 'query', schema: { type: 'integer' }, description: '1 — с балансами' }], responses: { 200: { description: 'OK' } } },
@@ -195,12 +207,13 @@ export const openapiSpec = {
     { name: 'PromptPay', description: 'Тайские QR коды' },
     { name: 'eSIM', description: 'eSIM — тарифы, выпуск, пополнение' },
     { name: 'VPN', description: 'VPN — локации, покупка ключей (VLESS/Shadowsocks), OpenVPN' },
+    { name: 'AML', description: 'AML — проверка адресов (TRON/ETH/BTC) на риски + PDF-отчёт. 0.5 USDT за проверку.' },
     { name: 'Transit', description: 'Транзитные крипто-кошельки — выпуск, балансы, переводы (TRON/BSC/ETH/BTC)' },
     {
       name: 'Webhooks',
       description:
         'Уведомления о событиях на ваш эндпоинт (HTTP POST, JSON).\n\n' +
-        '**События:** `deposit.credited` (зачислен депозит), `payment.completed` / `payment.failed` (оплата СБП/PromptPay/eSIM/VPN), `esim.issued` (выпущена eSIM), `vpn.issued` (выпущен VPN-ключ), `webhook.test` (тест).\n\n' +
+        '**События:** `deposit.credited` (зачислен депозит), `payment.completed` / `payment.failed` (оплата СБП/PromptPay/eSIM/VPN), `esim.issued` (выпущена eSIM), `vpn.issued` (выпущен VPN-ключ), `aml.checked` (выполнена AML-проверка), `webhook.test` (тест).\n\n' +
         '**Подписка на события:** по умолчанию приходят все события. Через `PUT /webhook` можно передать `events: [...]` — тогда придут только выбранные. Конструктор с чекбоксами и отправкой тестов по каждому событию доступен в кабинете (раздел «API-доступ»).\n\n' +
         '**Формат тела:**\n```json\n{\n  "id": "evt_…",\n  "event": "payment.completed",\n  "created": "2026-07-19T12:00:00.000Z",\n  "data": { "system": "SBP", "transactionId": "…", "amountUsdt": 12.34, "sourceAmount": 1000, "sourceCurrency": "RUB" }\n}\n```\n\n' +
         '**Заголовки:** `X-LnP-Event` — тип события; `X-LnP-Signature` — подпись вида `sha256=<hex>`.\n\n' +

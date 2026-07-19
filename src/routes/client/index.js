@@ -5,6 +5,7 @@ import portalRoutes from './portal.js';
 import esimRoutes from './esim.js';
 import vpnRoutes from './vpn.js';
 import transitRoutes from './transit.js';
+import amlRoutes from './aml.js';
 import webhookRoutes from './webhook.js';
 import notificationRoutes from './notifications.js';
 
@@ -17,6 +18,7 @@ router.use('/auth', authRoutes);
 router.use('/esim', clientPortalAuth, esimRoutes);
 router.use('/vpn', clientPortalAuth, vpnRoutes);
 router.use('/transit', clientPortalAuth, transitRoutes);
+router.use('/aml', clientPortalAuth, amlRoutes);
 router.use('/webhook', clientPortalAuth, webhookRoutes);
 router.use('/notifications', clientPortalAuth, notificationRoutes);
 router.use(clientPortalAuth, portalRoutes);

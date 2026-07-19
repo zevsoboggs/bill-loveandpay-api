@@ -24,9 +24,9 @@ router.get('/me', async (req, res) => {
   res.json(serialize({
     id: c.id, name: c.name, email: c.email, company: c.company, status: c.status,
     avatarUrl: c.avatarUrl || null, vpnAutoRenew: c.vpnAutoRenew, totpEnabled: c.totpEnabled,
-    balances: { deposit: toNum(c.depositBalance), sbp: toNum(c.sbpBalance), promptpay: toNum(c.promptpayBalance), esim: toNum(c.esimBalance), vpn: toNum(c.vpnBalance) },
-    margins: { sbp: marginFor(c, 'SBP'), promptpay: marginFor(c, 'PROMPTPAY'), esim: marginFor(c, 'ESIM'), vpn: marginFor(c, 'VPN') },
-    services: { sbp: c.sbpEnabled, promptpay: c.promptpayEnabled, esim: c.esimEnabled, vpn: c.vpnEnabled, transit: c.transitEnabled },
+    balances: { deposit: toNum(c.depositBalance), sbp: toNum(c.sbpBalance), promptpay: toNum(c.promptpayBalance), esim: toNum(c.esimBalance), vpn: toNum(c.vpnBalance), aml: toNum(c.amlBalance) },
+    margins: { sbp: marginFor(c, 'SBP'), promptpay: marginFor(c, 'PROMPTPAY'), esim: marginFor(c, 'ESIM'), vpn: marginFor(c, 'VPN'), aml: marginFor(c, 'AML') },
+    services: { sbp: c.sbpEnabled, promptpay: c.promptpayEnabled, esim: c.esimEnabled, vpn: c.vpnEnabled, transit: c.transitEnabled, aml: c.amlEnabled },
     api: { apiKey: c.apiKey, apiSecret: c.apiSecret, ipRestricted: c.ipRestricted, sandboxApiKey: c.sandboxApiKey, sandboxApiSecret: c.sandboxApiSecret },
     deposit: { walletAddress: c.depositWalletAddress, network: c.depositWalletAddress ? 'TRC-20' : null, hasWallet: !!c.depositWalletId, minDeposit: minDepositFor(c) },
     ipWhitelist: c.ipWhitelist,

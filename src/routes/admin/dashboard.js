@@ -15,12 +15,12 @@ router.get('/stats', async (req, res) => {
       prisma.client.count({ where: { status: 'ACTIVE' } }),
       prisma.transaction.groupBy({ by: ['system'], _sum: { chargedUsdt: true, marginUsdt: true, providerCostUsdt: true }, _count: true }),
       prisma.transaction.groupBy({ by: ['status'], _count: true }),
-      prisma.client.aggregate({ _sum: { depositBalance: true, sbpBalance: true, promptpayBalance: true, esimBalance: true, vpnBalance: true } }),
+      prisma.client.aggregate({ _sum: { depositBalance: true, sbpBalance: true, promptpayBalance: true, esimBalance: true, vpnBalance: true, amlBalance: true } }),
       prisma.deposit.aggregate({ _sum: { amountUsdt: true }, where: { status: 'CREDITED' } }),
     ]);
 
     const bySystem = {};
-    for (const s of ['SBP', 'PROMPTPAY', 'ESIM', 'VPN']) {
+    for (const s of ['SBP', 'PROMPTPAY', 'ESIM', 'VPN', 'AML']) {
       const row = txAgg.find((r) => r.system === s);
       bySystem[s] = {
         count: row?._count || 0,
@@ -38,7 +38,8 @@ router.get('/stats', async (req, res) => {
         promptpayUsdt: toNum(balAgg._sum.promptpayBalance),
         esimUsdt: toNum(balAgg._sum.esimBalance),
         vpnUsdt: toNum(balAgg._sum.vpnBalance),
-        totalOnPlatformUsdt: toNum(balAgg._sum.depositBalance) + toNum(balAgg._sum.sbpBalance) + toNum(balAgg._sum.promptpayBalance) + toNum(balAgg._sum.esimBalance) + toNum(balAgg._sum.vpnBalance),
+        amlUsdt: toNum(balAgg._sum.amlBalance),
+        totalOnPlatformUsdt: toNum(balAgg._sum.depositBalance) + toNum(balAgg._sum.sbpBalance) + toNum(balAgg._sum.promptpayBalance) + toNum(balAgg._sum.esimBalance) + toNum(balAgg._sum.vpnBalance) + toNum(balAgg._sum.amlBalance),
       },
       totalDepositedUsdt: toNum(depAgg._sum.amountUsdt),
       transactions: {
@@ -55,11 +56,12 @@ router.get('/stats', async (req, res) => {
 router.get('/activity', async (req, res) => {
   try {
     const take = Math.min(parseInt(req.query.limit || '25', 10) || 25, 100);
-    const [deposits, txns, esims, vpns] = await Promise.all([
+    const [deposits, txns, esims, vpns, amls] = await Promise.all([
       prisma.deposit.findMany({ where: { status: 'CREDITED' }, orderBy: { createdAt: 'desc' }, take, include: { client: { select: { name: true } } } }),
       prisma.transaction.findMany({ where: { status: 'COMPLETED' }, orderBy: { createdAt: 'desc' }, take, include: { client: { select: { name: true } } } }),
       prisma.esim.findMany({ orderBy: { createdAt: 'desc' }, take, include: { client: { select: { name: true } } } }),
       prisma.vpnKey.findMany({ orderBy: { createdAt: 'desc' }, take, include: { client: { select: { name: true } } } }),
+      prisma.amlCheck.findMany({ orderBy: { createdAt: 'desc' }, take, include: { client: { select: { name: true } } } }),
     ]);
 
     const feed = [
@@ -67,6 +69,7 @@ router.get('/activity', async (req, res) => {
       ...txns.map((t) => ({ kind: 'payment', at: t.createdAt, client: t.client?.name, system: t.system, amountUsdt: toNum(t.chargedUsdt), text: `${t.system} · ${t.sourceAmount ? `${toNum(t.sourceAmount)} ${t.sourceCurrency}` : ''} · ${toNum(t.chargedUsdt)} USDT` })),
       ...esims.map((e) => ({ kind: 'esim', at: e.createdAt, client: e.client?.name, system: 'ESIM', amountUsdt: null, text: `eSIM ${e.planName || ''} (${e.iccid || ''})` })),
       ...vpns.map((v) => ({ kind: 'vpn', at: v.createdAt, client: v.client?.name, system: 'VPN', amountUsdt: toNum(v.chargedUsdt), text: `VPN ${v.locationLabel || ''}` })),
+      ...amls.map((a) => ({ kind: 'aml', at: a.createdAt, client: a.client?.name, system: 'AML', amountUsdt: toNum(a.chargedUsdt), text: `AML ${a.address?.slice(0, 10)}… · риск ${a.riskLevel || '—'} (${a.score ?? '—'}/100)` })),
     ].sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, take);
 
     res.json(serialize(feed));

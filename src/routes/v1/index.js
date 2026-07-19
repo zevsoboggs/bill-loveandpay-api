@@ -9,6 +9,7 @@ import promptpay from './promptpay.js';
 import esim from './esim.js';
 import vpn from './vpn.js';
 import transit from './transit.js';
+import aml from './aml.js';
 import webhook from './webhook.js';
 
 const router = Router();
@@ -34,5 +35,6 @@ router.use('/promptpay', requireService('PROMPTPAY'), promptpay);
 router.use('/esim', requireService('ESIM'), esim);
 router.use('/vpn', requireService('VPN'), vpn);
 router.use('/transit', requireService('TRANSIT'), transit);
+router.use('/aml', requireService('AML'), aml);
 
 export default router;
