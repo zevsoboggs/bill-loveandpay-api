@@ -30,6 +30,7 @@ router.get('/', (req, res) => {
       promptpay: c.promptpayEnabled,
       esim: c.esimEnabled,
       vpn: c.vpnEnabled,
+      transit: c.transitEnabled,
     },
     depositAddress: c.depositWalletAddress || null,
     depositNetwork: c.depositWalletAddress ? 'TRC-20' : null,

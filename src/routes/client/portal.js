@@ -25,7 +25,7 @@ router.get('/me', async (req, res) => {
     id: c.id, name: c.name, email: c.email, company: c.company, status: c.status,
     balances: { deposit: toNum(c.depositBalance), sbp: toNum(c.sbpBalance), promptpay: toNum(c.promptpayBalance), esim: toNum(c.esimBalance), vpn: toNum(c.vpnBalance) },
     margins: { sbp: marginFor(c, 'SBP'), promptpay: marginFor(c, 'PROMPTPAY'), esim: marginFor(c, 'ESIM'), vpn: marginFor(c, 'VPN') },
-    services: { sbp: c.sbpEnabled, promptpay: c.promptpayEnabled, esim: c.esimEnabled, vpn: c.vpnEnabled },
+    services: { sbp: c.sbpEnabled, promptpay: c.promptpayEnabled, esim: c.esimEnabled, vpn: c.vpnEnabled, transit: c.transitEnabled },
     api: { apiKey: c.apiKey, apiSecret: c.apiSecret, ipRestricted: c.ipRestricted, sandboxApiKey: c.sandboxApiKey, sandboxApiSecret: c.sandboxApiSecret },
     deposit: { walletAddress: c.depositWalletAddress, network: c.depositWalletAddress ? 'TRC-20' : null, hasWallet: !!c.depositWalletId, minDeposit: minDepositFor(c) },
     ipWhitelist: c.ipWhitelist,

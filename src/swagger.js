@@ -151,6 +151,26 @@ export const openapiSpec = {
     },
     '/vpn/my': { get: { tags: ['VPN'], summary: 'Мои VPN-ключи', responses: { 200: { description: 'OK' } } } },
     '/vpn/{id}/ovpn': { get: { tags: ['VPN'], summary: 'OpenVPN-конфиг ключа', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }, { name: 'proto', in: 'query', schema: { type: 'string', enum: ['tcp', 'udp', 'udp_ru'] } }], responses: { 200: { description: 'OK' } } } },
+    '/transit/networks': { get: { tags: ['Transit'], summary: 'Доступные сети/монеты', responses: { 200: { description: 'TRON/BSC/ETH/BTC + id монет' } } } },
+    '/transit/wallets': {
+      get: { tags: ['Transit'], summary: 'Мои транзитные кошельки', parameters: [{ name: 'balances', in: 'query', schema: { type: 'integer' }, description: '1 — с балансами' }], responses: { 200: { description: 'OK' } } },
+      post: {
+        tags: ['Transit'], summary: 'Выпустить транзитный кошелёк',
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['network'], properties: { network: { type: 'string', enum: ['tron', 'bsc', 'eth', 'btc'] }, label: { type: 'string' } } } } } },
+        responses: { 200: { description: 'Кошелёк (id, address, network)' } },
+      },
+    },
+    '/transit/wallets/{id}': { get: { tags: ['Transit'], summary: 'Кошелёк + баланс', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'OK' }, 404: { description: 'Not found' } } } },
+    '/transit/wallets/{id}/balance': { get: { tags: ['Transit'], summary: 'Только баланс', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'OK' } } } },
+    '/transit/wallets/{id}/transfer': {
+      post: {
+        tags: ['Transit'], summary: 'Перевод наружу с кошелька',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['toAddress', 'amount'], properties: { coin: { type: 'integer', description: '1 = USDT-TRC20' }, toAddress: { type: 'string' }, amount: { type: 'number' } } } } } },
+        responses: { 200: { description: 'OK' } },
+      },
+    },
+    '/transit/wallets/{id}/rename': { post: { tags: ['Transit'], summary: 'Переименовать кошелёк', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], requestBody: { content: { 'application/json': { schema: { type: 'object', properties: { label: { type: 'string' } } } } } }, responses: { 200: { description: 'OK' } } } },
     '/webhook': {
       get: { tags: ['Webhooks'], summary: 'Текущая конфигурация вебхука', responses: { 200: { description: 'url, enabled, secret, events[]' } } },
       put: {
@@ -175,6 +195,7 @@ export const openapiSpec = {
     { name: 'PromptPay', description: 'Тайские QR коды' },
     { name: 'eSIM', description: 'eSIM — тарифы, выпуск, пополнение' },
     { name: 'VPN', description: 'VPN — локации, покупка ключей (VLESS/Shadowsocks), OpenVPN' },
+    { name: 'Transit', description: 'Транзитные крипто-кошельки — выпуск, балансы, переводы (TRON/BSC/ETH/BTC)' },
     {
       name: 'Webhooks',
       description:

@@ -11,6 +11,7 @@ import analytics from './analytics.js';
 import cardApplications from './cardApplications.js';
 import esims from './esims.js';
 import vpnKeys from './vpnKeys.js';
+import transit from './transit.js';
 
 const router = Router();
 
@@ -26,6 +27,7 @@ router.use('/ledger', ledger);
 router.use('/card-applications', cardApplications);
 router.use('/esims', esims);
 router.use('/vpn-keys', vpnKeys);
+router.use('/transit', transit);
 router.use('/dashboard', dashboard);
 router.use('/analytics', analytics);
 

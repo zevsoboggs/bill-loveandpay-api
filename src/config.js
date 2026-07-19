@@ -62,6 +62,12 @@ const config = {
     defaultMargin: num(process.env.DEFAULT_VPN_MARGIN, 0.2),
   },
 
+  // Transit wallets — external lnpapp transit-api (create/manage crypto wallets).
+  transit: {
+    baseUrl: process.env.TRANSIT_API_BASE || 'http://lnpapp.rest/api/transit-api',
+    apiKey: process.env.TRANSIT_API_KEY,
+  },
+
   // Minimum deposit (USDT). eSIM-only partners get the lower threshold.
   deposits: {
     min: num(process.env.MIN_DEPOSIT_USDT, 1000),

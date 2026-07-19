@@ -133,6 +133,7 @@ model Client {
   promptpayEnabled Boolean @default(true)
   esimEnabled      Boolean @default(false)
   vpnEnabled       Boolean @default(false)
+  transitEnabled   Boolean @default(false)
 
   // Dedicated CryptoOffice transit wallet for this client's USDT deposits.
   depositWalletId      String?

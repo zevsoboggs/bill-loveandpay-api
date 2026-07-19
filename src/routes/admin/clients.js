@@ -19,7 +19,7 @@ const publicSelect = {
   webhookUrl: true, webhookEnabled: true,
   depositBalance: true, sbpBalance: true, promptpayBalance: true, esimBalance: true, vpnBalance: true,
   sbpMargin: true, promptpayMargin: true, esimMargin: true, vpnMargin: true,
-  sbpEnabled: true, promptpayEnabled: true, esimEnabled: true, vpnEnabled: true,
+  sbpEnabled: true, promptpayEnabled: true, esimEnabled: true, vpnEnabled: true, transitEnabled: true,
   depositWalletId: true, depositWalletAddress: true, depositWalletBaseline: true,
   createdAt: true, updatedAt: true,
   _count: { select: { transactions: true, deposits: true, ipWhitelist: true } },
@@ -59,7 +59,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { name, email, company, status, ipRestricted, sbpMargin, promptpayMargin, esimMargin, vpnMargin, createWallet, password, portalEnabled,
-      sbpEnabled, promptpayEnabled, esimEnabled, vpnEnabled } = req.body || {};
+      sbpEnabled, promptpayEnabled, esimEnabled, vpnEnabled, transitEnabled } = req.body || {};
     if (!name) return res.status(400).json({ error: 'name обязателен' });
     if (portalEnabled && !email) return res.status(400).json({ error: 'Для кабинета клиента нужен email' });
     if (password && String(password).length < 8) return res.status(400).json({ error: 'Пароль минимум 8 символов' });
@@ -90,6 +90,7 @@ router.post('/', async (req, res) => {
         promptpayEnabled: promptpayEnabled !== false,
         esimEnabled: !!esimEnabled,
         vpnEnabled: !!vpnEnabled,
+        transitEnabled: !!transitEnabled,
         apiKey: generateApiKey(), apiSecret: generateApiSecret(),
         sandboxApiKey: 'sk_' + generateApiKey().slice(3), sandboxApiSecret: 'ss_sbx_' + generateApiSecret().slice(3),
         depositWalletId, depositWalletAddress,
@@ -106,7 +107,7 @@ router.post('/', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   try {
     const { name, email, company, status, ipRestricted, sbpMargin, promptpayMargin, esimMargin, vpnMargin, password, portalEnabled,
-      sbpEnabled, promptpayEnabled, esimEnabled, vpnEnabled } = req.body || {};
+      sbpEnabled, promptpayEnabled, esimEnabled, vpnEnabled, transitEnabled } = req.body || {};
     const data = {};
     if (name !== undefined) data.name = name;
     if (email !== undefined) data.email = email || null;
@@ -118,6 +119,7 @@ router.patch('/:id', async (req, res) => {
     if (promptpayEnabled !== undefined) data.promptpayEnabled = !!promptpayEnabled;
     if (esimEnabled !== undefined) data.esimEnabled = !!esimEnabled;
     if (vpnEnabled !== undefined) data.vpnEnabled = !!vpnEnabled;
+    if (transitEnabled !== undefined) data.transitEnabled = !!transitEnabled;
     if (sbpMargin !== undefined) data.sbpMargin = sbpMargin === null || sbpMargin === '' ? null : Number(sbpMargin);
     if (promptpayMargin !== undefined) data.promptpayMargin = promptpayMargin === null || promptpayMargin === '' ? null : Number(promptpayMargin);
     if (esimMargin !== undefined) data.esimMargin = esimMargin === null || esimMargin === '' ? null : Number(esimMargin);
