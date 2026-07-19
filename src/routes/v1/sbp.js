@@ -12,8 +12,11 @@ const router = Router();
 
 // GET /v1/sbp/rate — current USDT/RUB rate
 router.get('/rate', async (req, res) => {
-  try { res.json(await sbp.getRate()); }
-  catch (e) { res.status(502).json({ error: e.response?.data?.error || e.message }); }
+  try {
+    const r = await sbp.getRate();
+    // White-label: expose only the rate, hide the upstream source.
+    res.json({ rate: Number(r?.rate) || null, currency: r?.currency || 'RUB', updatedAt: r?.updatedAt || null });
+  } catch (e) { res.status(502).json({ error: e.response?.data?.error || e.message }); }
 });
 
 // POST /v1/sbp/quote { qrData } — parse QR, return the price WITHOUT charging.

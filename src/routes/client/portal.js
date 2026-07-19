@@ -39,7 +39,7 @@ router.get('/rates', async (req, res) => {
   const tasks = [];
   if (c.sbpEnabled) {
     tasks.push(raceTimeout(sbp.getRate(), 9000)
-      .then((r) => { out.sbp = { rubPerUsdt: Number(r?.rate) || null, source: r?.source || null, updatedAt: r?.updatedAt || null }; })
+      .then((r) => { out.sbp = { rubPerUsdt: Number(r?.rate) || null, updatedAt: r?.updatedAt || null }; })
       .catch(() => { out.sbp = { error: true }; }));
   }
   if (c.promptpayEnabled) {

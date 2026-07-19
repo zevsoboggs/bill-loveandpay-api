@@ -20,7 +20,8 @@ function providerCost(calcData) {
 router.get('/rate', async (req, res) => {
   try {
     const r = await promptpay.getRate();
-    res.json({ baseRate: r?.данные?.курс_usdt_thb ?? r?.data?.rate_usdt_thb ?? null, raw: r });
+    // White-label: only the rate, no raw upstream payload.
+    res.json({ baseRate: r?.данные?.курс_usdt_thb ?? r?.data?.rate_usdt_thb ?? null, updatedAt: r?.данные?.обновлено ?? null });
   } catch (e) { res.status(502).json({ error: e.message }); }
 });
 
@@ -131,7 +132,8 @@ router.post('/pay', async (req, res) => {
     amountUsdt: price.chargedUsdt,
     status: updated.status,
     receiptReady: !!slipUrl,
-    slipUrl,
+    // White-label: serve the slip via our proxy, never the upstream URL.
+    slipDownload: ppTxId && slipUrl ? `/v1/promptpay/slip/${ppTxId}` : null,
     checkReceiptAt: ppTxId ? `/v1/promptpay/receipt/${ppTxId}` : null,
   }));
 });
@@ -151,7 +153,9 @@ router.get('/receipt/:ppTxId', async (req, res) => {
         await prisma.transaction.update({ where: { id: tx.id }, data: { status: 'COMPLETED', metadata: { ...tx.metadata, slipUrl, receipt } } });
       }
     }
-    res.json({ ready: !!slipUrl, slipUrl, receipt, slipDownload: slipUrl ? `/v1/promptpay/slip/${req.params.ppTxId}` : null });
+    // Strip the upstream slip URL from the receipt; expose only our proxy path.
+    const { ссылка_на_слип, slip_url, ...cleanReceipt } = receipt || {};
+    res.json({ ready: !!slipUrl, receipt: cleanReceipt, slipDownload: slipUrl ? `/v1/promptpay/slip/${req.params.ppTxId}` : null });
   } catch (e) {
     if (e.response?.status === 409) return res.status(409).json({ ready: false, message: 'Чек ещё не готов, повторите через 3 сек' });
     res.status(e.response?.status || 502).json({ error: e.message });
