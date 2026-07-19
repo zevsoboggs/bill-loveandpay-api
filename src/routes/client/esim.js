@@ -51,4 +51,31 @@ router.get('/sim/:iccid', async (req, res) => {
   try { res.json(await yesim.simInfo(req.params.iccid)); } catch (e) { res.status(502).json({ error: e.message }); }
 });
 
+// GET /api/client/esim/usage/:iccid — white-labeled data-usage summary.
+// Defensive: providers vary the field names & units (bytes vs MB), so probe.
+router.get('/usage/:iccid', async (req, res) => {
+  try {
+    const info = await yesim.simInfo(req.params.iccid);
+    const d = info?.data || info?.sim || info || {};
+    const num = (...keys) => {
+      for (const k of keys) { const v = d[k] ?? info?.[k]; if (v != null && v !== '' && !isNaN(Number(v))) return Number(v); }
+      return null;
+    };
+    // Providers report either bytes or MB — normalise to MB (heuristic: >100000 ⇒ bytes).
+    const toMb = (v) => (v == null ? null : (v > 100000 ? Math.round(v / 1048576) : Math.round(v)));
+    const totalMb = toMb(num('data_total', 'total_data', 'data_package_mb', 'traffic_total', 'volume'));
+    const usedMb = toMb(num('data_used', 'used_data', 'traffic_used', 'used'));
+    let remainMb = toMb(num('data_remaining', 'remaining_data', 'traffic_remaining', 'remaining', 'data_left'));
+    if (remainMb == null && totalMb != null && usedMb != null) remainMb = Math.max(0, totalMb - usedMb);
+    const status = d.status || d.state || info?.status || null;
+    const expiry = d.expired_at || d.expiry || d.expire_date || d.valid_until || info?.expired_at || null;
+    res.json({
+      iccid: req.params.iccid,
+      totalMb, usedMb, remainingMb: remainMb,
+      usedPct: totalMb ? Math.min(100, Math.round(((usedMb ?? (totalMb - (remainMb ?? 0))) / totalMb) * 100)) : null,
+      status, expiry,
+    });
+  } catch (e) { res.status(502).json({ error: e.message }); }
+});
+
 export default router;

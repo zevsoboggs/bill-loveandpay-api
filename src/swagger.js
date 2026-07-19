@@ -174,13 +174,13 @@ export const openapiSpec = {
     '/webhook': {
       get: { tags: ['Webhooks'], summary: 'Текущая конфигурация вебхука', responses: { 200: { description: 'url, enabled, secret, events[]' } } },
       put: {
-        tags: ['Webhooks'], summary: 'Задать URL и включить/выключить вебхук',
-        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { url: { type: 'string', example: 'https://your-app.com/webhooks/loveandpay' }, enabled: { type: 'boolean' } } } } } },
-        responses: { 200: { description: 'Обновлено' }, 400: { description: 'Некорректный URL' } },
+        tags: ['Webhooks'], summary: 'Задать URL, события и включить/выключить вебхук',
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { url: { type: 'string', example: 'https://your-app.com/webhooks/loveandpay' }, enabled: { type: 'boolean' }, events: { type: 'array', items: { type: 'string' }, description: 'Подписка на события. Пустой массив = все события.', example: ['payment.completed', 'deposit.credited'] } } } } } },
+        responses: { 200: { description: 'Обновлено (url, enabled, secret, events[], subscribedEvents[])' }, 400: { description: 'Некорректный URL' } },
       },
     },
     '/webhook/test': {
-      post: { tags: ['Webhooks'], summary: 'Отправить тестовое событие на ваш URL', responses: { 200: { description: 'Доставлено (httpStatus вашего эндпоинта)' }, 400: { description: 'URL не задан или недоступен' } } },
+      post: { tags: ['Webhooks'], summary: 'Отправить тестовое событие на ваш URL', requestBody: { content: { 'application/json': { schema: { type: 'object', properties: { event: { type: 'string', description: 'Опционально: конкретное событие с реалистичным примером payload', example: 'payment.completed' } } } } } }, responses: { 200: { description: 'Доставлено (httpStatus вашего эндпоинта)' }, 400: { description: 'URL не задан или недоступен' } } },
     },
     '/webhook/rotate-secret': {
       post: { tags: ['Webhooks'], summary: 'Перевыпустить секрет подписи', responses: { 200: { description: '{ secret }' } } },
@@ -200,7 +200,8 @@ export const openapiSpec = {
       name: 'Webhooks',
       description:
         'Уведомления о событиях на ваш эндпоинт (HTTP POST, JSON).\n\n' +
-        '**События:** `deposit.credited` (зачислен депозит), `payment.completed` / `payment.failed` (оплата СБП/PromptPay/eSIM), `esim.issued` (выпущена eSIM), `webhook.test` (тест).\n\n' +
+        '**События:** `deposit.credited` (зачислен депозит), `payment.completed` / `payment.failed` (оплата СБП/PromptPay/eSIM/VPN), `esim.issued` (выпущена eSIM), `vpn.issued` (выпущен VPN-ключ), `webhook.test` (тест).\n\n' +
+        '**Подписка на события:** по умолчанию приходят все события. Через `PUT /webhook` можно передать `events: [...]` — тогда придут только выбранные. Конструктор с чекбоксами и отправкой тестов по каждому событию доступен в кабинете (раздел «API-доступ»).\n\n' +
         '**Формат тела:**\n```json\n{\n  "id": "evt_…",\n  "event": "payment.completed",\n  "created": "2026-07-19T12:00:00.000Z",\n  "data": { "system": "SBP", "transactionId": "…", "amountUsdt": 12.34, "sourceAmount": 1000, "sourceCurrency": "RUB" }\n}\n```\n\n' +
         '**Заголовки:** `X-LnP-Event` — тип события; `X-LnP-Signature` — подпись вида `sha256=<hex>`.\n\n' +
         '**Проверка подписи:** `HMAC-SHA256(secret, rawBody)` должно совпасть с `X-LnP-Signature`. Секрет — в конфигурации вебхука (GET `/webhook`).\n\n' +

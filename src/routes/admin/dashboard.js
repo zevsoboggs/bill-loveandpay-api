@@ -50,6 +50,29 @@ router.get('/stats', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /api/admin/dashboard/activity?limit= — recent deposits/payments/issues
+// merged into one reverse-chronological feed for the admin home.
+router.get('/activity', async (req, res) => {
+  try {
+    const take = Math.min(parseInt(req.query.limit || '25', 10) || 25, 100);
+    const [deposits, txns, esims, vpns] = await Promise.all([
+      prisma.deposit.findMany({ where: { status: 'CREDITED' }, orderBy: { createdAt: 'desc' }, take, include: { client: { select: { name: true } } } }),
+      prisma.transaction.findMany({ where: { status: 'COMPLETED' }, orderBy: { createdAt: 'desc' }, take, include: { client: { select: { name: true } } } }),
+      prisma.esim.findMany({ orderBy: { createdAt: 'desc' }, take, include: { client: { select: { name: true } } } }),
+      prisma.vpnKey.findMany({ orderBy: { createdAt: 'desc' }, take, include: { client: { select: { name: true } } } }),
+    ]);
+
+    const feed = [
+      ...deposits.map((d) => ({ kind: 'deposit', at: d.createdAt, client: d.client?.name, system: null, amountUsdt: toNum(d.amountUsdt), text: `Депозит +${toNum(d.amountUsdt)} USDT` })),
+      ...txns.map((t) => ({ kind: 'payment', at: t.createdAt, client: t.client?.name, system: t.system, amountUsdt: toNum(t.chargedUsdt), text: `${t.system} · ${t.sourceAmount ? `${toNum(t.sourceAmount)} ${t.sourceCurrency}` : ''} · ${toNum(t.chargedUsdt)} USDT` })),
+      ...esims.map((e) => ({ kind: 'esim', at: e.createdAt, client: e.client?.name, system: 'ESIM', amountUsdt: null, text: `eSIM ${e.planName || ''} (${e.iccid || ''})` })),
+      ...vpns.map((v) => ({ kind: 'vpn', at: v.createdAt, client: v.client?.name, system: 'VPN', amountUsdt: toNum(v.chargedUsdt), text: `VPN ${v.locationLabel || ''}` })),
+    ].sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, take);
+
+    res.json(serialize(feed));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /api/admin/dashboard/providers — live float on the platform's provider
 // accounts + the CryptoOffice master wallet. Used to decide top-ups.
 router.get('/providers', async (req, res) => {

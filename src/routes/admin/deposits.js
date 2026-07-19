@@ -4,6 +4,7 @@ import { parseList, sendList } from '../../lib/refine.js';
 import { serialize } from '../../lib/money.js';
 import { creditDeposit } from '../../lib/ledger.js';
 import { dispatch, EVENTS } from '../../services/webhooks.js';
+import { notify } from '../../services/notifications.js';
 import { minDepositFor } from '../../lib/deposits.js';
 
 const router = Router();
@@ -53,6 +54,7 @@ router.post('/', async (req, res) => {
     if (finalStatus === 'CREDITED') {
       await creditDeposit(clientId, Number(amountUsdt), { refId: deposit.id, note: note || 'Manual deposit' });
       dispatch(clientId, EVENTS.DEPOSIT_CREDITED, { amountUsdt: Number(amountUsdt), network: network || 'TRC-20', source: 'manual', depositId: deposit.id });
+      notify(clientId, 'deposit.credited', 'Депозит зачислен', `+${Number(amountUsdt)} USDT на депозитный баланс`);
     }
     res.status(201).json(serialize(deposit));
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -77,6 +79,7 @@ router.patch('/:id', async (req, res) => {
     if (status === 'CREDITED' && existing.status !== 'CREDITED') {
       await creditDeposit(existing.clientId, Number(existing.amountUsdt), { refId: existing.id, note: 'Deposit credited' });
       dispatch(existing.clientId, EVENTS.DEPOSIT_CREDITED, { amountUsdt: Number(existing.amountUsdt), network: existing.network, source: 'manual', depositId: existing.id });
+      notify(existing.clientId, 'deposit.credited', 'Депозит зачислен', `+${Number(existing.amountUsdt)} USDT`);
     }
     res.json(serialize(updated));
   } catch (e) { res.status(500).json({ error: e.message }); }

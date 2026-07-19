@@ -8,6 +8,7 @@ import { priceFromCost } from './pricing.js';
 import { chargeSystem, refundSystem } from './ledger.js';
 import { toNum, round6 } from './money.js';
 import { dispatch, EVENTS } from '../services/webhooks.js';
+import { notify } from '../services/notifications.js';
 
 let plansCache = { at: 0, list: [] };
 export async function loadPlans() {
@@ -103,6 +104,7 @@ export async function issue(client, planId, count = 1) {
   const esimSummary = esims.map((e) => ({ iccid: e.iccid, qrcode: e.qrcode, status: e.status_qr }));
   dispatch(client.id, EVENTS.PAYMENT_COMPLETED, { system: 'ESIM', transactionId: tx.id, amountUsdt: price.chargedUsdt, sourceAmount: round6(toNum(plan.price) * count), sourceCurrency: 'EUR' });
   dispatch(client.id, EVENTS.ESIM_ISSUED, { transactionId: tx.id, planName: plan.name, country: plan.countries_included, count, amountUsdt: price.chargedUsdt, esims: esimSummary });
+  notify(client.id, 'esim.issued', 'eSIM выпущен', `${plan.name}${count > 1 ? ` ×${count}` : ''} · списано ${price.chargedUsdt} USDT`);
 
   return { transactionId: tx.id, amountUsdt: price.chargedUsdt, count, esims };
 }

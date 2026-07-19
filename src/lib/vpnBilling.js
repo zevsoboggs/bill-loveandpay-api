@@ -7,6 +7,7 @@ import { priceFromCost } from './pricing.js';
 import { chargeSystem, refundSystem } from './ledger.js';
 import { toNum } from './money.js';
 import { dispatch, EVENTS } from '../services/webhooks.js';
+import { notify } from '../services/notifications.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const err = (msg, code, extra) => Object.assign(new Error(msg), { code, ...extra });
@@ -92,6 +93,7 @@ export async function buy(client, { locationId, rfHost }) {
   await prisma.transaction.update({ where: { id: tx.id }, data: { status: 'COMPLETED', providerRef: vpnKey.id } });
   dispatch(client.id, EVENTS.PAYMENT_COMPLETED, { system: 'VPN', transactionId: tx.id, amountUsdt: price.chargedUsdt });
   dispatch(client.id, EVENTS.VPN_ISSUED, { transactionId: tx.id, keyId: vpnKey.id, location: label, protocol, expiresAt, amountUsdt: price.chargedUsdt });
+  notify(client.id, 'vpn.issued', 'VPN-ключ выпущен', `${label} · до ${expiresAt.toISOString().slice(0,10)} · списано ${price.chargedUsdt} USDT`);
 
   return { transactionId: tx.id, amountUsdt: price.chargedUsdt, key: vpnKey };
 }

@@ -7,6 +7,7 @@ import { priceFromCost } from '../../lib/pricing.js';
 import { chargeSystem, refundSystem } from '../../lib/ledger.js';
 import { serialize, toNum } from '../../lib/money.js';
 import { dispatch, EVENTS } from '../../services/webhooks.js';
+import { notify } from '../../services/notifications.js';
 import { idempotency } from '../../middleware/idempotency.js';
 import { sandboxPayment } from '../../lib/sandbox.js';
 
@@ -121,6 +122,7 @@ router.post('/pay', idempotency, async (req, res) => {
   });
 
   if (updated.status === 'COMPLETED') {
+    notify(client.id, 'payment.completed', 'Платёж PromptPay выполнен', `${Number(amountThb)} THB · списано ${price.chargedUsdt} USDT`);
     dispatch(client.id, EVENTS.PAYMENT_COMPLETED, {
       system: 'PROMPTPAY', transactionId: updated.id, amountUsdt: price.chargedUsdt,
       sourceAmount: Number(amountThb), sourceCurrency: 'THB', providerRef: ppTxId || null, slipUrl,

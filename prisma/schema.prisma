@@ -78,6 +78,9 @@ model AdminUser {
   role         AdminRole @default(ADMIN)
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
+  totpSecret   String?
+  totpEnabled  Boolean   @default(false)
+  avatarUrl    String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -111,7 +114,11 @@ model Client {
   // Outbound webhooks — signed event notifications to the partner's endpoint.
   webhookUrl     String?
   webhookSecret  String?
-  webhookEnabled Boolean @default(false)
+  webhookEnabled Boolean  @default(false)
+  webhookEvents  String[] @default([]) // subscribed event types; empty = all
+
+  avatarUrl    String? // base64 data URL (small)
+  vpnAutoRenew Boolean @default(false)
 
   // Balances (all in USDT). depositBalance = unallocated pool that the admin
   // distributes into the per-service balances.
@@ -156,8 +163,37 @@ model Client {
   vpnKeys      VpnKey[]
   webhookDeliveries WebhookDelivery[]
   idempotencyKeys   IdempotencyKey[]
+  notifications     Notification[]
 
   @@map("clients")
+}
+
+// ─── Cabinet notifications (bell) ────────────────────────────────────────────
+model Notification {
+  id        String   @id @default(cuid())
+  clientId  String
+  type      String   // deposit.credited | payment.completed | esim.issued | vpn.issued | vpn.expiring | system
+  title     String
+  body      String?
+  data      Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, read])
+  @@map("notifications")
+}
+
+// ─── Provider rate history (for the cabinet chart) ───────────────────────────
+model RateSnapshot {
+  id     String   @id @default(cuid())
+  system String   // SBP | PROMPTPAY
+  rate   Decimal  @db.Decimal(20, 6)
+  at     DateTime @default(now())
+
+  @@index([system, at])
+  @@map("rate_snapshots")
 }
 
 // ─── Idempotency (safe payment retries) ──────────────────────────────────────

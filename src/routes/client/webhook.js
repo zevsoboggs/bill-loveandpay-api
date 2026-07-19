@@ -10,9 +10,9 @@ router.get('/', async (req, res) => {
 
 router.put('/', async (req, res) => {
   try {
-    const { url, enabled } = req.body || {};
+    const { url, enabled, events } = req.body || {};
     if (url && !/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'URL должен начинаться с http(s)://' });
-    res.json(await updateConfig(req.portalClient.id, { url, enabled }));
+    res.json(await updateConfig(req.portalClient.id, { url, enabled, events }));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -21,7 +21,8 @@ router.post('/rotate-secret', async (req, res) => {
 });
 
 router.post('/test', async (req, res) => {
-  const r = await sendTest(req.portalClient.id);
+  const { event } = req.body || {};
+  const r = await sendTest(req.portalClient.id, event);
   res.status(r.ok ? 200 : 400).json(r);
 });
 

@@ -62,11 +62,16 @@ export async function deliver(client, event, data) {
 }
 
 // Fire-and-forget dispatch by clientId — used from payment/deposit flows.
+// Honours the client's event subscription: an empty webhookEvents list means
+// "all events" (backward-compatible); otherwise only subscribed events fire.
 export function dispatch(clientId, event, data) {
   prisma.client
     .findUnique({ where: { id: clientId } })
     .then((client) => {
-      if (client?.webhookEnabled && client?.webhookUrl) return deliver(client, event, data);
+      if (!client?.webhookEnabled || !client?.webhookUrl) return;
+      const subs = client.webhookEvents || [];
+      if (subs.length && !subs.includes(event)) return;
+      return deliver(client, event, data);
     })
     .catch((e) => console.error('[webhooks] dispatch error:', e.message));
 }

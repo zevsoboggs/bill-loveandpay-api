@@ -7,6 +7,7 @@ import { priceFromCost } from '../../lib/pricing.js';
 import { chargeSystem, refundSystem } from '../../lib/ledger.js';
 import { serialize, toNum } from '../../lib/money.js';
 import { dispatch, EVENTS } from '../../services/webhooks.js';
+import { notify } from '../../services/notifications.js';
 import { idempotency } from '../../middleware/idempotency.js';
 import { sandboxPayment } from '../../lib/sandbox.js';
 
@@ -100,6 +101,7 @@ router.post('/pay', idempotency, async (req, res) => {
     },
   });
 
+  notify(client.id, 'payment.completed', 'Платёж СБП выполнен', `${result.paymentDetails?.total ?? quote.rubAmount ?? ''} RUB · списано ${price.chargedUsdt} USDT`);
   dispatch(client.id, EVENTS.PAYMENT_COMPLETED, {
     system: 'SBP', transactionId: updated.id, amountUsdt: price.chargedUsdt,
     sourceAmount: result.paymentDetails?.total ?? quote.rubAmount, sourceCurrency: 'RUB',

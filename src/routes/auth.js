@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { authenticator } from 'otplib';
 import prisma from '../db.js';
 import config from '../config.js';
 import { adminAuth } from '../middleware/adminAuth.js';
 
 const router = Router();
+const ISSUER = 'bill.loveandpay.io';
 
 // POST /api/admin/auth/login → { token, admin }
 router.post('/login', async (req, res) => {
@@ -18,6 +20,15 @@ router.post('/login', async (req, res) => {
 
     const ok = await bcrypt.compare(password, admin.passwordHash);
     if (!ok) return res.status(401).json({ error: 'Неверный email или пароль' });
+
+    // Second factor (Google Authenticator / TOTP) when the admin enabled it.
+    if (admin.totpEnabled && admin.totpSecret) {
+      const totp = String((req.body || {}).totp || '').replace(/\s/g, '');
+      if (!totp) return res.status(401).json({ error: 'Введите код из приложения', code: 'TOTP_REQUIRED' });
+      if (!authenticator.check(totp, admin.totpSecret)) {
+        return res.status(401).json({ error: 'Неверный код 2FA', code: 'TOTP_INVALID' });
+      }
+    }
 
     await prisma.adminUser.update({ where: { id: admin.id }, data: { lastLoginAt: new Date() } });
 
@@ -37,7 +48,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', adminAuth, async (req, res) => {
   const admin = await prisma.adminUser.findUnique({
     where: { id: req.admin.sub },
-    select: { id: true, email: true, name: true, role: true, lastLoginAt: true },
+    select: { id: true, email: true, name: true, role: true, lastLoginAt: true, totpEnabled: true, avatarUrl: true },
   });
   if (!admin) return res.status(404).json({ error: 'Not found' });
   res.json(admin);
@@ -56,15 +67,55 @@ router.post('/change-password', adminAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// PATCH /api/admin/auth/me → update own name
+// PATCH /api/admin/auth/me → update own name / avatar
 router.patch('/me', adminAuth, async (req, res) => {
   try {
-    const { name } = req.body || {};
+    const { name, avatarUrl } = req.body || {};
+    if (avatarUrl != null && String(avatarUrl).length > 500000) return res.status(400).json({ error: 'Аватар слишком большой (макс ~500 КБ)' });
     const admin = await prisma.adminUser.update({
-      where: { id: req.admin.sub }, data: { name: name ?? undefined },
-      select: { id: true, email: true, name: true, role: true },
+      where: { id: req.admin.sub },
+      data: { name: name ?? undefined, avatarUrl: avatarUrl === undefined ? undefined : (avatarUrl || null) },
+      select: { id: true, email: true, name: true, role: true, avatarUrl: true },
     });
     res.json(admin);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/auth/2fa/setup → generate a secret + otpauth URI (not yet enabled)
+router.post('/2fa/setup', adminAuth, async (req, res) => {
+  try {
+    const admin = await prisma.adminUser.findUnique({ where: { id: req.admin.sub } });
+    if (admin.totpEnabled) return res.status(400).json({ error: '2FA уже включена. Сначала отключите её.' });
+    const secret = authenticator.generateSecret();
+    await prisma.adminUser.update({ where: { id: admin.id }, data: { totpSecret: secret, totpEnabled: false } });
+    const otpauth = authenticator.keyuri(admin.email, ISSUER, secret);
+    res.json({ secret, otpauth });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/auth/2fa/enable { totp } → verify the first code and turn 2FA on
+router.post('/2fa/enable', adminAuth, async (req, res) => {
+  try {
+    const totp = String((req.body || {}).totp || '').replace(/\s/g, '');
+    const admin = await prisma.adminUser.findUnique({ where: { id: req.admin.sub } });
+    if (!admin.totpSecret) return res.status(400).json({ error: 'Сначала выполните настройку 2FA' });
+    if (!authenticator.check(totp, admin.totpSecret)) return res.status(400).json({ error: 'Неверный код, попробуйте ещё раз' });
+    await prisma.adminUser.update({ where: { id: admin.id }, data: { totpEnabled: true } });
+    res.json({ success: true, enabled: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/auth/2fa/disable { password, totp } → turn 2FA off
+router.post('/2fa/disable', adminAuth, async (req, res) => {
+  try {
+    const { password, totp } = req.body || {};
+    const admin = await prisma.adminUser.findUnique({ where: { id: req.admin.sub } });
+    if (!admin.totpEnabled) return res.json({ success: true, enabled: false });
+    const pwOk = await bcrypt.compare(password || '', admin.passwordHash);
+    if (!pwOk) return res.status(400).json({ error: 'Пароль неверный' });
+    if (!authenticator.check(String(totp || '').replace(/\s/g, ''), admin.totpSecret)) return res.status(400).json({ error: 'Неверный код 2FA' });
+    await prisma.adminUser.update({ where: { id: admin.id }, data: { totpEnabled: false, totpSecret: null } });
+    res.json({ success: true, enabled: false });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

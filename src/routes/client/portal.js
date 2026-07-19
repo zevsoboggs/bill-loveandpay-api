@@ -23,6 +23,7 @@ router.get('/me', async (req, res) => {
   });
   res.json(serialize({
     id: c.id, name: c.name, email: c.email, company: c.company, status: c.status,
+    avatarUrl: c.avatarUrl || null, vpnAutoRenew: c.vpnAutoRenew,
     balances: { deposit: toNum(c.depositBalance), sbp: toNum(c.sbpBalance), promptpay: toNum(c.promptpayBalance), esim: toNum(c.esimBalance), vpn: toNum(c.vpnBalance) },
     margins: { sbp: marginFor(c, 'SBP'), promptpay: marginFor(c, 'PROMPTPAY'), esim: marginFor(c, 'ESIM'), vpn: marginFor(c, 'VPN') },
     services: { sbp: c.sbpEnabled, promptpay: c.promptpayEnabled, esim: c.esimEnabled, vpn: c.vpnEnabled, transit: c.transitEnabled },
@@ -31,6 +32,19 @@ router.get('/me', async (req, res) => {
     ipWhitelist: c.ipWhitelist,
     counts: c._count,
   }));
+});
+
+// PATCH /api/client/profile — update avatar / VPN auto-renew preference
+router.patch('/profile', async (req, res) => {
+  try {
+    const { avatarUrl, vpnAutoRenew } = req.body || {};
+    if (avatarUrl != null && String(avatarUrl).length > 500000) return res.status(400).json({ error: 'Аватар слишком большой (макс ~500 КБ)' });
+    const data = {};
+    if (avatarUrl !== undefined) data.avatarUrl = avatarUrl || null;
+    if (vpnAutoRenew !== undefined) data.vpnAutoRenew = !!vpnAutoRenew;
+    const c = await prisma.client.update({ where: { id: req.portalClient.id }, data });
+    res.json({ avatarUrl: c.avatarUrl || null, vpnAutoRenew: c.vpnAutoRenew });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // GET /api/client/rates — live SBP (USDT/RUB) & PromptPay (USDT/THB) rates for
@@ -52,6 +66,20 @@ router.get('/rates', async (req, res) => {
   }
   await Promise.all(tasks);
   res.json(out);
+});
+
+// GET /api/client/rate-history?system=SBP&days=14 — snapshots for the rate chart
+router.get('/rate-history', async (req, res) => {
+  try {
+    const system = (req.query.system || 'SBP').toUpperCase();
+    if (!['SBP', 'PROMPTPAY'].includes(system)) return res.status(400).json({ error: 'system must be SBP or PROMPTPAY' });
+    const days = Math.min(parseInt(req.query.days || '14', 10) || 14, 90);
+    const since = new Date(Date.now() - days * 86400 * 1000);
+    const rows = await prisma.rateSnapshot.findMany({
+      where: { system, at: { gte: since } }, orderBy: { at: 'asc' }, take: 5000,
+    });
+    res.json({ system, points: rows.map((r) => ({ at: r.at, rate: toNum(r.rate) })) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // GET /api/client/analytics?from=&to= — this partner's own spend analytics
