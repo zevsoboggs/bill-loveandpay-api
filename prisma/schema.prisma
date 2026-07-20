@@ -341,6 +341,52 @@ model CardApplication {
   @@map("card_applications")
 }
 
+// ─── Corporate crypto cards (PaySpace VCC), admin-only. Issued from our float
+// to pay platform expenses (hosting, subscriptions). PAN/CVV are NEVER stored —
+// only last4/mask; full details are fetched live from the provider on demand.
+model CorporateCard {
+  id           String   @id @default(cuid())
+  providerCardId String @unique          // PaySpace card_id
+  programCode  String                     // PaySpace product_code (e.g. SG_SUB)
+  label        String?                    // purpose, e.g. "Хостинг / Railway"
+  title        String?                    // program title snapshot
+  maskedNumber String?                    // e.g. "5355 68•• •••• 1234"
+  last4        String?
+  expDate      String?
+  cardType     String?                    // Mastercard / Visa
+  status       String   @default("active")
+  balanceUsd   Decimal  @default(0) @db.Decimal(20, 2)
+  currency     String   @default("USD")
+  email        String?                    // cardholder email set on the card
+  createdByAdminId String?
+  lastSyncedAt DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  topups CardTopup[]
+
+  @@index([status])
+  @@map("corporate_cards")
+}
+
+// Ledger of top-ups / issuance loads for a corporate card (our-side record).
+model CardTopup {
+  id         String   @id @default(cuid())
+  cardId     String
+  kind       String   @default("topup")  // issue | topup
+  amountUsd  Decimal  @db.Decimal(20, 2)
+  requestId  String?                       // idempotency key sent to provider
+  status     String   @default("completed")
+  adminId    String?
+  note       String?
+  createdAt  DateTime @default(now())
+
+  card CorporateCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([cardId, createdAt])
+  @@map("card_topups")
+}
+
 // ─── IP whitelist (per client) ───────────────────────────────────────────────
 model IpWhitelist {
   id        String   @id @default(cuid())

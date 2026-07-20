@@ -13,6 +13,7 @@ import esims from './esims.js';
 import vpnKeys from './vpnKeys.js';
 import transit from './transit.js';
 import amlChecks from './aml.js';
+import corporateCards from './cards.js';
 import apiLogs from './apiLogs.js';
 
 const router = Router();
@@ -31,6 +32,7 @@ router.use('/esims', esims);
 router.use('/vpn-keys', vpnKeys);
 router.use('/transit', transit);
 router.use('/aml-checks', amlChecks);
+router.use('/corporate-cards', corporateCards);
 router.use('/api-logs', apiLogs);
 router.use('/dashboard', dashboard);
 router.use('/analytics', analytics);

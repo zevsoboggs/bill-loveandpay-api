@@ -77,6 +77,22 @@ const config = {
     defaultMargin: num(process.env.DEFAULT_AML_MARGIN, 0),
   },
 
+  // Corporate crypto cards — PaySpace VCC (app.pay.space). Admin-only tool to
+  // issue our own cards from our float for platform expenses. HMAC-signed.
+  payspace: {
+    baseUrl: process.env.PAYSPACE_BASE_URL || 'https://app.pay.space',
+    apiKey: process.env.PAYSPACE_API_KEY,
+    secret: process.env.PAYSPACE_SECRET,
+    callbackBaseUrl: process.env.PAYSPACE_CALLBACK_BASE_URL || '',
+    // Only `enabled` programs are offered for issue.
+    programs: [
+      { code: 'SG_SUB', title: 'Love&Pay Service Online', subtitle: 'ChatGPT, Claude, хостинги, подписки', fee: 15.0, enabled: true },
+      { code: 'HK_NFC_1', title: 'Love&Pay Business Online', subtitle: 'Meta, TikTok, Google Ads', fee: 15.0, enabled: false },
+      { code: 'HK_NFC_2', title: 'Love&Pay NFC', subtitle: 'Apple Pay / Google Pay', fee: 35.0, enabled: false },
+      { code: 'UK_SUB_1', title: 'Love&Pay Service Online', subtitle: 'ChatGPT, Claude, Telegram', fee: 15.0, enabled: false },
+    ],
+  },
+
   // Minimum deposit (USDT). eSIM-only partners get the lower threshold.
   deposits: {
     min: num(process.env.MIN_DEPOSIT_USDT, 1000),
