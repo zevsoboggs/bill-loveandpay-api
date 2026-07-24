@@ -14,6 +14,7 @@ import vpnKeys from './vpnKeys.js';
 import transit from './transit.js';
 import amlChecks from './aml.js';
 import corporateCards from './cards.js';
+import depositWallets from './depositWallets.js';
 import apiLogs from './apiLogs.js';
 
 const router = Router();
@@ -33,6 +34,7 @@ router.use('/vpn-keys', vpnKeys);
 router.use('/transit', transit);
 router.use('/aml-checks', amlChecks);
 router.use('/corporate-cards', corporateCards);
+router.use('/deposit-wallets', depositWallets);
 router.use('/api-logs', apiLogs);
 router.use('/dashboard', dashboard);
 router.use('/analytics', analytics);

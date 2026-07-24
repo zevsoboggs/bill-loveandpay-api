@@ -174,8 +174,31 @@ model Client {
   idempotencyKeys   IdempotencyKey[]
   notifications     Notification[]
   amlChecks         AmlCheck[]
+  depositSweeps     DepositSweep[]
 
   @@map("clients")
+}
+
+// ─── Collected deposits — audit of USDT swept OUT of a client's on-chain deposit
+// wallet to a destination we choose. Does NOT touch depositBalance (the client's
+// spendable credit); it only records the physical collection of funds.
+model DepositSweep {
+  id         String   @id @default(cuid())
+  clientId   String
+  walletId   String
+  toAddress  String
+  amountUsdt Decimal  @db.Decimal(20, 6)
+  status     String   @default("SENT") // SENT | FAILED
+  txRef      String?
+  error      String?
+  adminId    String?
+  note       String?
+  createdAt  DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, createdAt])
+  @@map("deposit_sweeps")
 }
 
 // ─── Cabinet notifications (bell) ────────────────────────────────────────────
